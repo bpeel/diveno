@@ -146,14 +146,34 @@ fn generate_tiles(
     Ok(())
 }
 
+fn generate_tiles_for_all_colors(
+    cr: &cairo::Context,
+    height: i32,
+    tiles_per_row: u32,
+) -> Result<(), cairo::Error> {
+    for (color_num, color) in COLORS.iter().enumerate() {
+        cr.save()?;
+
+        cr.translate(0.0, color_num as f64 * height as f64);
+
+        generate_tiles(&cr, tiles_per_row, color)?;
+
+        cr.restore()?;
+    }
+
+    Ok(())
+}
+
 fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
     let (x_tiles, y_tiles) = get_texture_size();
-    let height = y_tiles as i32 * TILE_SIZE as i32;
+    let one_color_height = y_tiles as i32 * TILE_SIZE as i32;
+    let full_width = x_tiles as i32 * TILE_SIZE as i32;
+    let full_height = one_color_height * COLORS.len() as i32;
 
     let surface = cairo::ImageSurface::create(
         cairo::Format::ARgb32,
-        x_tiles as i32 * TILE_SIZE as i32,
-        height * COLORS.len() as i32,
+        full_width + (full_width + 1) / 2,
+        full_height,
     )?;
 
     let cr = cairo::Context::new(&surface)?;
@@ -164,14 +184,35 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
     cr.paint()?;
     cr.restore()?;
 
-    for (color_num, color) in COLORS.iter().enumerate() {
+    let mut x = 0;
+    let mut y = 0;
+    let mut level_width = full_width;
+    let mut level_height = full_height;
+
+    for level in 0.. {
         cr.save()?;
+        cr.translate(x as f64, y as f64);
+        cr.scale(
+            level_width as f64 / full_width as f64,
+            level_height as f64 / full_height as f64,
+        );
 
-        cr.translate(0.0, color_num as f64 * height as f64);
-
-        generate_tiles(&cr, x_tiles, color)?;
+        generate_tiles_for_all_colors(&cr, one_color_height, x_tiles)?;
 
         cr.restore()?;
+
+        if level_width <= 1 && level_height <= 1 {
+            break;
+        }
+
+        if level & 1 == 0 {
+            x += level_width;
+        } else {
+            y += level_height;
+        }
+
+        level_width = std::cmp::max(1, level_width / 2);
+        level_height = std::cmp::max(1, level_height / 2);
     }
 
     surface.flush();
