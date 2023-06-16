@@ -1,15 +1,17 @@
+mod gl;
+
 use sdl2;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
 
 struct Context {
-    canvas: sdl2::render::Canvas<sdl2::video::Window>,
+    gl: gl::Gl,
+    _gl_context: sdl2::video::GLContext,
+    window: sdl2::video::Window,
     _video_subsystem: sdl2::VideoSubsystem,
     event_pump: sdl2::EventPump,
     _sdl: sdl2::Sdl,
-    redraw_queued: bool,
-    should_quit: bool,
 }
 
 impl Context {
@@ -20,55 +22,93 @@ impl Context {
 
         let video_subsystem = sdl.video()?;
 
-        let window = match video_subsystem.window("Diveno", 800, 600).build() {
+        let gl_attr = video_subsystem.gl_attr();
+
+        gl_attr.set_red_size(8);
+        gl_attr.set_green_size(8);
+        gl_attr.set_blue_size(8);
+        gl_attr.set_alpha_size(0);
+        gl_attr.set_depth_size(0);
+        gl_attr.set_double_buffer(true);
+        gl_attr.set_context_major_version(2);
+        gl_attr.set_context_minor_version(0);
+        gl_attr.set_context_profile(sdl2::video::GLProfile::GLES);
+
+        let window = match video_subsystem.window("Diveno", 800, 600)
+            .opengl()
+            .build()
+        {
             Ok(w) => w,
             Err(e) => return Err(e.to_string()),
         };
 
-        let canvas = match window.into_canvas().build() {
-            Ok(c) => c,
-            Err(e) => return Err(e.to_string()),
-        };
+        let gl_context = window.gl_create_context()?;
+
+        window.gl_make_current(&gl_context)?;
+
+        let gl = gl::Gl::new(|proc| video_subsystem.gl_get_proc_address(proc));
 
         Ok(Context {
-            canvas,
+            gl,
+            _gl_context: gl_context,
+            window,
             _video_subsystem: video_subsystem,
             event_pump,
             _sdl: sdl,
-            redraw_queued: true,
-            should_quit: false,
         })
     }
 }
 
-fn handle_event(context: &mut Context, event: Event) {
+struct GameData<'a> {
+    context: &'a mut Context,
+    redraw_queued: bool,
+    should_quit: bool,
+}
+
+impl<'a> GameData<'a> {
+    fn new(
+        context: &'a mut Context,
+    ) -> GameData<'a> {
+        GameData {
+            context,
+            redraw_queued: true,
+            should_quit: false,
+        }
+    }
+}
+
+fn handle_event(game_data: &mut GameData, event: Event) {
     match event {
         Event::Quit {..} |
         Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-            context.should_quit = true;
+            game_data.should_quit = true;
         },
         _ => {}
     }
 }
 
-fn redraw(context: &mut Context) {
-    context.redraw_queued = false;
+fn redraw(game_data: &mut GameData) {
+    game_data.redraw_queued = false;
 
-    context.canvas.clear();
-    context.canvas.present();
+    let gl = &game_data.context.gl;
+
+    (gl.clear_color)(0.0, 0.0, 1.0, 1.0);
+    (gl.clear)(gl::COLOR_BUFFER_BIT);
+
+    game_data.context.window.gl_swap_window();
 }
 
-fn main_loop(context: &mut Context) {
-    while !context.should_quit {
-        if context.redraw_queued {
-            while let Some(event) = context.event_pump.poll_event() {
-                handle_event(context, event);
+fn main_loop(game_data: &mut GameData) {
+    while !game_data.should_quit {
+        if game_data.redraw_queued {
+            while let Some(event) = game_data.context.event_pump.poll_event() {
+                handle_event(game_data, event);
             }
 
-            redraw(context);
+            redraw(game_data);
         } else {
-            let event = context.event_pump.wait_event();
-            handle_event(context, event);
+            let event = game_data.context.event_pump.wait_event();
+            handle_event(game_data, event);
         }
     }
 }
@@ -82,7 +122,7 @@ pub fn main() -> ExitCode {
         },
     };
 
-    main_loop(&mut context);
+    main_loop(&mut GameData::new(&mut context));
 
     ExitCode::SUCCESS
 }
