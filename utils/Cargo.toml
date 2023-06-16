@@ -1,0 +1,13 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "create-tile-texture"
+path = "src/create_tile_texture.rs"
+
+[dependencies.cairo-rs]
+version = "0.17.10"
+default-features = false
+features = ["png"]
