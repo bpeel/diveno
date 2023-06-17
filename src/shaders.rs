@@ -79,6 +79,16 @@ impl Program {
 
         program.link()?;
 
+        unsafe {
+            if let Some(location) = program.gl.get_uniform_location(
+                program.id,
+                "tex",
+            ) {
+                program.gl.use_program(Some(program.id));
+                program.gl.uniform_1_u32(Some(&location), 0);
+            }
+        }
+
         Ok(program)
     }
 
