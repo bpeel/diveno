@@ -172,8 +172,8 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
 
     let surface = cairo::ImageSurface::create(
         cairo::Format::ARgb32,
-        full_width + (full_width + 1) / 2,
-        full_height,
+        full_width,
+        full_height + (full_height + 1) / 2,
     )?;
 
     let cr = cairo::Context::new(&surface)?;
@@ -206,9 +206,9 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
         }
 
         if level & 1 == 0 {
-            x += level_width;
-        } else {
             y += level_height;
+        } else {
+            x += level_width;
         }
 
         level_width = std::cmp::max(1, level_width / 2);
