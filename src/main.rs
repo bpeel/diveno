@@ -1,4 +1,3 @@
-mod gl;
 mod shaders;
 
 use sdl2;
