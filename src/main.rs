@@ -1,4 +1,5 @@
 mod shaders;
+mod images;
 
 use sdl2;
 use sdl2::event::Event;
@@ -68,6 +69,7 @@ impl Context {
 struct GameData<'a> {
     context: &'a mut Context,
     shaders: shaders::Shaders,
+    images: images::ImageSet,
     redraw_queued: bool,
     should_quit: bool,
 }
@@ -76,10 +78,12 @@ impl<'a> GameData<'a> {
     fn new(
         context: &'a mut Context,
         shaders: shaders::Shaders,
+        images: images::ImageSet,
     ) -> GameData<'a> {
         GameData {
             context,
             shaders,
+            images,
             redraw_queued: true,
             should_quit: false,
         }
@@ -106,6 +110,12 @@ fn redraw(game_data: &mut GameData) {
         gl.clear(glow::COLOR_BUFFER_BIT);
 
         gl.use_program(Some(game_data.shaders.test.id()));
+
+        gl.bind_texture(
+            glow::TEXTURE_2D,
+            Some(game_data.images.letters.id()),
+        );
+
         gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
     }
 
@@ -144,7 +154,15 @@ pub fn main() -> ExitCode {
         }
     };
 
-    main_loop(&mut GameData::new(&mut context, shaders));
+    let images = match images::ImageSet::new(&context.gl) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        }
+    };
+
+    main_loop(&mut GameData::new(&mut context, shaders, images));
 
     ExitCode::SUCCESS
 }
