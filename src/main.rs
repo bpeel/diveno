@@ -1,12 +1,14 @@
 mod gl;
+mod shaders;
 
 use sdl2;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
+use std::rc::Rc;
 
 struct Context {
-    gl: gl::Gl,
+    gl: Rc<gl::Gl>,
     _gl_context: sdl2::video::GLContext,
     window: sdl2::video::Window,
     _video_subsystem: sdl2::VideoSubsystem,
@@ -49,7 +51,7 @@ impl Context {
         let gl = gl::Gl::new(|proc| video_subsystem.gl_get_proc_address(proc));
 
         Ok(Context {
-            gl,
+            gl: Rc::new(gl),
             _gl_context: gl_context,
             window,
             _video_subsystem: video_subsystem,
@@ -61,6 +63,7 @@ impl Context {
 
 struct GameData<'a> {
     context: &'a mut Context,
+    shaders: shaders::Shaders,
     redraw_queued: bool,
     should_quit: bool,
 }
@@ -68,9 +71,11 @@ struct GameData<'a> {
 impl<'a> GameData<'a> {
     fn new(
         context: &'a mut Context,
+        shaders: shaders::Shaders,
     ) -> GameData<'a> {
         GameData {
             context,
+            shaders,
             redraw_queued: true,
             should_quit: false,
         }
@@ -94,6 +99,9 @@ fn redraw(game_data: &mut GameData) {
 
     (gl.clear_color)(0.0, 0.0, 1.0, 1.0);
     (gl.clear)(gl::COLOR_BUFFER_BIT);
+
+    (gl.use_program)(game_data.shaders.test.id());
+    (gl.draw_arrays)(gl::TRIANGLE_STRIP, 0, 4);
 
     game_data.context.window.gl_swap_window();
 }
@@ -122,7 +130,15 @@ pub fn main() -> ExitCode {
         },
     };
 
-    main_loop(&mut GameData::new(&mut context));
+    let shaders = match shaders::Shaders::new(&context.gl) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        }
+    };
+
+    main_loop(&mut GameData::new(&mut context, shaders));
 
     ExitCode::SUCCESS
 }
