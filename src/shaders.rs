@@ -8,7 +8,7 @@ pub struct Shaders {
 }
 
 impl Shaders {
-    pub fn new(gl: &Rc<gl::Gl>) -> Result<Shaders, String> {
+    pub fn new(gl: &Rc<glow::Context>) -> Result<Shaders, String> {
         Ok(Shaders {
             test: create_program(
                 Rc::clone(gl),
@@ -20,8 +20,8 @@ impl Shaders {
 }
 
 fn create_shader(
-    gl: Rc<gl::Gl>,
-    shader_type: gl::Enum,
+    gl: Rc<glow::Context>,
+    shader_type: u32,
     filename: &str,
 ) -> Result<gl::Shader, String> {
     let path: PathBuf = ["data", filename].iter().collect();
@@ -33,13 +33,20 @@ fn create_shader(
 }
 
 fn create_program(
-    gl: Rc<gl::Gl>,
+    gl: Rc<glow::Context>,
     vertex_filename: &str,
     fragment_filename: &str,
 ) -> Result<gl::Program, String> {
     let shaders = [
-        create_shader(Rc::clone(&gl), gl::VERTEX_SHADER, vertex_filename)?,
-        create_shader(Rc::clone(&gl), gl::FRAGMENT_SHADER, fragment_filename)?,
+        create_shader(
+            Rc::clone(&gl),
+            glow::VERTEX_SHADER,
+            vertex_filename)?,
+        create_shader(
+            Rc::clone(&gl),
+            glow::FRAGMENT_SHADER,
+            fragment_filename
+        )?,
     ];
 
     gl::Program::new(gl, &shaders)

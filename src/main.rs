@@ -6,9 +6,10 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
 use std::rc::Rc;
+use glow::HasContext;
 
 struct Context {
-    gl: Rc<gl::Gl>,
+    gl: Rc<glow::Context>,
     _gl_context: sdl2::video::GLContext,
     window: sdl2::video::Window,
     _video_subsystem: sdl2::VideoSubsystem,
@@ -48,7 +49,11 @@ impl Context {
 
         window.gl_make_current(&gl_context)?;
 
-        let gl = gl::Gl::new(|proc| video_subsystem.gl_get_proc_address(proc));
+        let gl = unsafe {
+            glow::Context::from_loader_function(|s| {
+                video_subsystem.gl_get_proc_address(s) as *const _
+            })
+        };
 
         Ok(Context {
             gl: Rc::new(gl),
@@ -97,11 +102,13 @@ fn redraw(game_data: &mut GameData) {
 
     let gl = &game_data.context.gl;
 
-    (gl.clear_color)(0.0, 0.0, 1.0, 1.0);
-    (gl.clear)(gl::COLOR_BUFFER_BIT);
+    unsafe {
+        gl.clear_color(0.0, 0.0, 1.0, 1.0);
+        gl.clear(glow::COLOR_BUFFER_BIT);
 
-    (gl.use_program)(game_data.shaders.test.id());
-    (gl.draw_arrays)(gl::TRIANGLE_STRIP, 0, 4);
+        gl.use_program(Some(game_data.shaders.test.id()));
+        gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
+    }
 
     game_data.context.window.gl_swap_window();
 }
