@@ -227,7 +227,7 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
     Ok(surface)
 }
 
-pub fn write_surface<S: AsRef<cairo::Surface>, P: AsRef<std::path::Path>>(
+fn write_surface<S: AsRef<cairo::Surface>, P: AsRef<std::path::Path>>(
     surface: S,
     filename: P,
 ) -> Result<(), String> {
