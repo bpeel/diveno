@@ -2,6 +2,7 @@ mod shaders;
 mod images;
 mod sdl_images;
 mod paint_data;
+mod letter_texture;
 
 use sdl2;
 use sdl2::event::Event;
