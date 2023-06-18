@@ -154,16 +154,16 @@ impl Drop for Program {
 }
 
 pub struct Shaders {
-    pub test: Program,
+    pub letter: Program,
 }
 
 impl Shaders {
     pub fn new(gl: &Rc<glow::Context>) -> Result<Shaders, String> {
         Ok(Shaders {
-            test: create_program(
+            letter: create_program(
                 Rc::clone(gl),
-                "test-vertex.glsl",
-                "test-fragment.glsl",
+                "letter-vertex.glsl",
+                "letter-fragment.glsl",
             )?,
         })
     }

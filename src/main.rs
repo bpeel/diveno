@@ -2,6 +2,7 @@ mod shaders;
 mod images;
 mod sdl_images;
 mod paint_data;
+mod game_painter;
 mod logic;
 mod buffer;
 mod letter_texture;
@@ -11,7 +12,6 @@ use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
 use std::rc::Rc;
-use glow::HasContext;
 
 struct Context {
     gl: Rc<glow::Context>,
@@ -73,8 +73,8 @@ impl Context {
 
 struct GameData<'a> {
     context: &'a mut Context,
-    paint_data: Rc<paint_data::PaintData>,
     logic: logic::Logic,
+    game_painter: game_painter::GamePainter,
     redraw_queued: bool,
     should_quit: bool,
 }
@@ -84,20 +84,22 @@ impl<'a> GameData<'a> {
         context: &'a mut Context,
         shaders: shaders::Shaders,
         images: images::ImageSet,
-    ) -> GameData<'a> {
+    ) -> Result<GameData<'a>, String> {
         let paint_data = Rc::new(paint_data::PaintData::new(
             Rc::clone(&context.gl),
             shaders,
             images,
         ));
 
-        GameData {
+        let game_painter = game_painter::GamePainter::new(paint_data)?;
+
+        Ok(GameData {
             context,
-            paint_data,
             logic: logic::Logic::new(),
+            game_painter,
             redraw_queued: true,
             should_quit: false,
-        }
+        })
     }
 }
 
@@ -112,9 +114,15 @@ fn handle_event(game_data: &mut GameData, event: Event) {
                 WindowEvent::Close => game_data.should_quit = true,
                 WindowEvent::Exposed => game_data.redraw_queued = true,
                 WindowEvent::Shown => {
+                    let (width, height) = game_data.context.window.size();
+                    game_data.game_painter.update_fb_size(width, height);
                     game_data.redraw_queued = true;
                 },
                 WindowEvent::SizeChanged(width, height) => {
+                    game_data.game_painter.update_fb_size(
+                        width as u32,
+                        height as u32
+                    );
                     game_data.redraw_queued = true;
                 },
                 _ => {},
@@ -127,21 +135,7 @@ fn handle_event(game_data: &mut GameData, event: Event) {
 fn redraw(game_data: &mut GameData) {
     game_data.redraw_queued = false;
 
-    let gl = &game_data.context.gl;
-
-    unsafe {
-        gl.clear_color(0.0, 0.0, 1.0, 1.0);
-        gl.clear(glow::COLOR_BUFFER_BIT);
-
-        gl.use_program(Some(game_data.paint_data.shaders.test.id()));
-
-        gl.bind_texture(
-            glow::TEXTURE_2D,
-            Some(game_data.paint_data.images.letters.id()),
-        );
-
-        gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
-    }
+    game_data.game_painter.paint(&game_data.logic);
 
     game_data.context.window.gl_swap_window();
 }
@@ -186,7 +180,15 @@ pub fn main() -> ExitCode {
         }
     };
 
-    main_loop(&mut GameData::new(&mut context, shaders, images));
+    let mut game_data = match GameData::new(&mut context, shaders, images) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        },
+    };
+
+    main_loop(&mut game_data);
 
     ExitCode::SUCCESS
 }
