@@ -7,7 +7,7 @@ mod buffer;
 mod letter_texture;
 
 use sdl2;
-use sdl2::event::Event;
+use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -106,6 +106,19 @@ fn handle_event(game_data: &mut GameData, event: Event) {
         Event::Quit {..} |
         Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
             game_data.should_quit = true;
+        },
+        Event::Window { win_event, .. } => {
+            match win_event {
+                WindowEvent::Close => game_data.should_quit = true,
+                WindowEvent::Exposed => game_data.redraw_queued = true,
+                WindowEvent::Shown => {
+                    game_data.redraw_queued = true;
+                },
+                WindowEvent::SizeChanged(width, height) => {
+                    game_data.redraw_queued = true;
+                },
+                _ => {},
+            }
         },
         _ => {}
     }
