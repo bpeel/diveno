@@ -1,5 +1,6 @@
 mod shaders;
 mod images;
+mod sdl_images;
 
 use sdl2;
 use sdl2::event::Event;
@@ -154,7 +155,7 @@ pub fn main() -> ExitCode {
         }
     };
 
-    let images = match images::ImageSet::new(&context.gl) {
+    let images = match sdl_images::load_image_set(&context.gl) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{}", e);
