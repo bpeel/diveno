@@ -3,6 +3,7 @@ mod images;
 mod sdl_images;
 mod paint_data;
 mod logic;
+mod buffer;
 mod letter_texture;
 
 use sdl2;
