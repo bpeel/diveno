@@ -2,6 +2,7 @@ mod shaders;
 mod images;
 mod sdl_images;
 mod paint_data;
+mod logic;
 mod letter_texture;
 
 use sdl2;
@@ -72,6 +73,7 @@ impl Context {
 struct GameData<'a> {
     context: &'a mut Context,
     paint_data: Rc<paint_data::PaintData>,
+    logic: logic::Logic,
     redraw_queued: bool,
     should_quit: bool,
 }
@@ -91,6 +93,7 @@ impl<'a> GameData<'a> {
         GameData {
             context,
             paint_data,
+            logic: logic::Logic::new(),
             redraw_queued: true,
             should_quit: false,
         }
