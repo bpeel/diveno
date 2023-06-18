@@ -2,6 +2,11 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use glow::HasContext;
 
+pub const POSITION_ATTRIB: u32 = 0;
+pub const TEX_COORD_ATTRIB: u32 = 1;
+pub const COLOR_ATTRIB: u32 = 2;
+pub const NORMAL_ATTRIB: u32 = 3;
+
 pub struct Shader {
     id: glow::NativeShader,
     gl: Rc<glow::Context>,
@@ -98,6 +103,27 @@ impl Program {
 
     fn link(&self) -> Result<(), String> {
         unsafe {
+            self.gl.bind_attrib_location(
+                self.id,
+                POSITION_ATTRIB,
+                "position",
+            );
+            self.gl.bind_attrib_location(
+                self.id,
+                TEX_COORD_ATTRIB,
+                "tex_coord_attrib",
+            );
+            self.gl.bind_attrib_location(
+                self.id,
+                NORMAL_ATTRIB,
+                "normal_attrib",
+            );
+            self.gl.bind_attrib_location(
+                self.id,
+                COLOR_ATTRIB,
+                "color_attrib",
+            );
+
             self.gl.link_program(self.id);
         }
 
