@@ -34,6 +34,10 @@ impl Logic {
         self.grid_changed_queued = true;
     }
 
+    pub fn word_length(&self) -> usize {
+        self.word_length
+    }
+
     pub fn set_in_progress_guess(&mut self, guess: &str) {
         let first_letter = self.word.chars().next().unwrap();
 
