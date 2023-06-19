@@ -62,7 +62,7 @@ impl LetterPainter {
 
     pub fn paint(&mut self, logic: &logic::Logic) {
         if self.transform_dirty {
-            self.update_transform();
+            self.update_transform(logic);
             self.transform_dirty = false;
         }
 
@@ -113,24 +113,41 @@ impl LetterPainter {
         }
     }
 
-    fn update_transform(&mut self) {
+    fn update_transform(&mut self, logic: &logic::Logic) {
         let smallest_axis = std::cmp::min(self.width, self.height);
         let tile_size_pixels = smallest_axis as f32 / 10.0;
 
         self.tile_w = tile_size_pixels * 2.0 / self.width as f32;
         self.tile_h = tile_size_pixels * 2.0 / self.height as f32;
-        self.grid_x = -self.tile_w * 3.0;
-        self.grid_y = self.tile_h * 3.0;
+        self.grid_x = -self.tile_w * logic.word_length() as f32 / 2.0;
+        self.grid_y = self.tile_h * logic::N_GUESSES as f32 / 2.0;
 
         self.vertices_dirty = true;
     }
 
-    fn update_vertices(&mut self, logic: &logic::Logic) {
+    fn fill_vertices_array(&mut self, logic: &logic::Logic) {
         self.vertices.clear();
+
+        let mut added = 0;
 
         for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
             self.add_letter(0, pos as u32, 0, ch);
+            added += 1;
         }
+
+        for x in added..logic.word_length() {
+            self.add_letter(0, x as u32, 0, '.');
+        }
+
+        for y in 1..logic::N_GUESSES {
+            for x in 0..logic.word_length() {
+                self.add_letter(0, x as u32, y as u32, ' ');
+            }
+        }
+    }
+
+    fn update_vertices(&mut self, logic: &logic::Logic) {
+        self.fill_vertices_array(logic);
 
         let n_quads = self.vertices.len() as u32 / 4;
 
