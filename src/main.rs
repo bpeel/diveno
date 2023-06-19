@@ -46,6 +46,7 @@ impl Context {
         gl_attr.set_context_profile(sdl2::video::GLProfile::GLES);
 
         let window = match video_subsystem.window("Diveno", 800, 600)
+            .resizable()
             .opengl()
             .build()
         {
