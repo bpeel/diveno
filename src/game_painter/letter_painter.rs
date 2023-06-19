@@ -30,6 +30,8 @@ pub struct LetterPainter {
     tile_h: f32,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<Vertex>,
+    // Used to keep track of whether we need to create a new quad buffer
+    most_quads: u32,
 }
 
 impl LetterPainter {
@@ -52,6 +54,7 @@ impl LetterPainter {
             tile_w: 1.0,
             tile_h: 1.0,
             vertices: Vec::new(),
+            most_quads: 0,
         })
     }
 
@@ -71,6 +74,18 @@ impl LetterPainter {
         self.add_letter(1, 1, 1, 'A');
         self.add_letter(1, 2, 1, 'T');
         self.add_letter(1, 3, 1, 'O');
+
+        let n_quads = self.vertices.len() as u32 / 4;
+
+        if n_quads > self.most_quads {
+            match self.paint_data.quad_tool.set_element_buffer(
+                &mut self.array_object,
+                n_quads,
+            ) {
+                Ok(most_quads) => self.most_quads = most_quads,
+                Err(_) => return,
+            }
+        }
 
         let gl = &self.paint_data.gl;
 
@@ -102,10 +117,11 @@ impl LetterPainter {
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
             gl.enable(glow::BLEND);
 
-            gl.draw_arrays(
+            gl.draw_elements(
                 glow::TRIANGLES,
-                0, // first
-                self.vertices.len() as i32,
+                n_quads as i32 * 6,
+                glow::UNSIGNED_SHORT,
+                0, // offset
             );
 
             gl.disable(glow::BLEND);
@@ -147,18 +163,6 @@ impl LetterPainter {
             x,
             y,
             s: letter.s1,
-            t: letter.t1,
-        });
-        self.vertices.push(Vertex {
-            x,
-            y: y - self.tile_h,
-            s: letter.s1,
-            t: letter.t2,
-        });
-        self.vertices.push(Vertex {
-            x: x + self.tile_w,
-            y,
-            s: letter.s2,
             t: letter.t1,
         });
         self.vertices.push(Vertex {
