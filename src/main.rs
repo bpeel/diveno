@@ -6,12 +6,14 @@ mod game_painter;
 mod logic;
 mod buffer;
 mod letter_texture;
+mod array_object;
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
 use std::rc::Rc;
+use glow::HasContext;
 
 struct Context {
     gl: Rc<glow::Context>,
@@ -71,6 +73,14 @@ impl Context {
     }
 }
 
+fn check_extension(context: &Context, name: &str) -> bool {
+    let extensions = unsafe {
+        context.gl.get_parameter_string(glow::EXTENSIONS)
+    };
+
+    extensions.split(' ').find(|&ext| ext == name).is_some()
+}
+
 struct GameData<'a> {
     context: &'a mut Context,
     logic: logic::Logic,
@@ -87,6 +97,7 @@ impl<'a> GameData<'a> {
     ) -> Result<GameData<'a>, String> {
         let paint_data = Rc::new(paint_data::PaintData::new(
             Rc::clone(&context.gl),
+            check_extension(context, "GL_OES_vertex_array_object"),
             shaders,
             images,
         ));
