@@ -134,6 +134,9 @@ impl LetterPainter {
         self.transform_dirty = true;
     }
 
+    pub fn handle_logic_event(&mut self, event: &logic::Event) {
+    }
+
     fn update_transform(&mut self) {
         let smallest_axis = std::cmp::min(self.width, self.height);
         let tile_size_pixels = smallest_axis as f32 / 10.0;

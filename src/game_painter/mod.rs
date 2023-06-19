@@ -50,4 +50,8 @@ impl GamePainter {
 
         self.letter_painter.update_fb_size(width, height);
     }
+
+    pub fn handle_logic_event(&mut self, event: &logic::Event) {
+        self.letter_painter.handle_logic_event(event);
+    }
 }

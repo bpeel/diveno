@@ -144,6 +144,18 @@ fn handle_event(game_data: &mut GameData, event: Event) {
     }
 }
 
+fn flush_logic_events(game_data: &mut GameData) {
+    while let Some(event) = game_data.logic.get_event() {
+        match event {
+            logic::Event::GridChanged => {
+                game_data.redraw_queued = true;
+            },
+        }
+
+        game_data.game_painter.handle_logic_event(&event);
+    }
+}
+
 fn redraw(game_data: &mut GameData) {
     game_data.redraw_queued = false;
 
@@ -159,10 +171,13 @@ fn main_loop(game_data: &mut GameData) {
                 handle_event(game_data, event);
             }
 
+            flush_logic_events(game_data);
+
             redraw(game_data);
         } else {
             let event = game_data.context.event_pump.wait_event();
             handle_event(game_data, event);
+            flush_logic_events(game_data);
         }
     }
 }
