@@ -4,6 +4,7 @@ use crate::logic;
 use crate::buffer::Buffer;
 use crate::letter_texture;
 use crate::shaders;
+use crate::array_object::ArrayObject;
 use glow::HasContext;
 
 #[repr(C)]
@@ -15,7 +16,8 @@ struct Vertex {
 }
 
 pub struct LetterPainter {
-    buffer: Buffer,
+    buffer: Rc<Buffer>,
+    array_object: ArrayObject,
     paint_data: Rc<PaintData>,
     width: u32,
     height: u32,
@@ -33,9 +35,14 @@ pub struct LetterPainter {
 impl LetterPainter {
     pub fn new(paint_data: Rc<PaintData>) -> Result<LetterPainter, String> {
         let buffer = create_letter_buffer(&paint_data)?;
+        let array_object = create_array_object(
+            Rc::clone(&paint_data),
+            Rc::clone(&buffer),
+        )?;
 
         Ok(LetterPainter {
             buffer,
+            array_object,
             paint_data,
             width: 1,
             height: 1,
@@ -81,27 +88,9 @@ impl LetterPainter {
                 glow::DYNAMIC_DRAW,
             );
 
+            self.array_object.bind();
+
             let program = self.paint_data.shaders.letter.id();
-
-            gl.vertex_attrib_pointer_f32(
-                shaders::POSITION_ATTRIB,
-                2, // size
-                glow::FLOAT,
-                false, // normalized
-                std::mem::size_of::<Vertex>() as i32,
-                0, // offset
-            );
-            gl.enable_vertex_attrib_array(shaders::POSITION_ATTRIB);
-
-            gl.vertex_attrib_pointer_f32(
-                shaders::TEX_COORD_ATTRIB,
-                2, // size
-                glow::UNSIGNED_SHORT,
-                true, // normalized
-                std::mem::size_of::<Vertex>() as i32,
-                std::mem::size_of::<f32>() as i32 * 2,
-            );
-            gl.enable_vertex_attrib_array(shaders::TEX_COORD_ATTRIB);
 
             gl.bind_texture(
                 glow::TEXTURE_2D,
@@ -193,8 +182,36 @@ impl LetterPainter {
     }
 }
 
-fn create_letter_buffer(paint_data: &PaintData) -> Result<Buffer, String> {
+fn create_array_object(
+    paint_data: Rc<PaintData>,
+    buffer: Rc<Buffer>,
+) -> Result<ArrayObject, String> {
+    let mut array_object = ArrayObject::new(paint_data)?;
+
+    array_object.set_attribute(
+        shaders::POSITION_ATTRIB,
+        2, // size
+        glow::FLOAT,
+        false, // normalized
+        std::mem::size_of::<Vertex>() as i32,
+        Rc::clone(&buffer),
+        0, // offset
+    );
+    array_object.set_attribute(
+        shaders::TEX_COORD_ATTRIB,
+        2, // size
+        glow::UNSIGNED_SHORT,
+        true, // normalized
+        std::mem::size_of::<Vertex>() as i32,
+        buffer,
+        std::mem::size_of::<f32>() as i32 * 2,
+    );
+
+    Ok(array_object)
+}
+
+fn create_letter_buffer(paint_data: &PaintData) -> Result<Rc<Buffer>, String> {
     let buffer = Buffer::new(Rc::clone(&paint_data.gl))?;
 
-    Ok(buffer)
+    Ok(Rc::new(buffer))
 }
