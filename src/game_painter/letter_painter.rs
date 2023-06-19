@@ -128,20 +128,43 @@ impl LetterPainter {
     fn fill_vertices_array(&mut self, logic: &logic::Logic) {
         self.vertices.clear();
 
-        let mut added = 0;
+        let mut guess_num = 0;
 
-        for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
-            self.add_letter(0, pos as u32, 0, ch);
-            added += 1;
+        for guess in logic.guesses() {
+            for (x, letter) in guess.iter().enumerate() {
+                let color = match letter.result {
+                    logic::LetterResult::Correct => 2,
+                    logic::LetterResult::WrongPosition => 3,
+                    logic::LetterResult::Wrong => 1,
+                };
+
+                self.add_letter(
+                    color,
+                    x as u32,
+                    guess_num as u32,
+                    letter.letter
+                );
+            }
+
+            guess_num += 1;
         }
 
-        for x in added..logic.word_length() {
-            self.add_letter(0, x as u32, 0, '.');
-        }
+        if guess_num < logic::N_GUESSES {
+            let mut added = 0;
 
-        for y in 1..logic::N_GUESSES {
-            for x in 0..logic.word_length() {
-                self.add_letter(0, x as u32, y as u32, ' ');
+            for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
+                self.add_letter(0, pos as u32, guess_num as u32, ch);
+                added += 1;
+            }
+
+            for x in added..logic.word_length() {
+                self.add_letter(0, x as u32, guess_num as u32, '.');
+            }
+
+            for y in guess_num + 1..logic::N_GUESSES {
+                for x in 0..logic.word_length() {
+                    self.add_letter(0, x as u32, y as u32, ' ');
+                }
             }
         }
     }
