@@ -6,6 +6,7 @@ pub const N_GUESSES: usize = 6;
 pub enum Event {
     WordChanged,
     GridChanged,
+    GuessEntered,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -28,6 +29,7 @@ pub struct Logic {
     n_guesses: usize,
     word_changed_queued: bool,
     grid_changed_queued: bool,
+    guess_entered_queued: bool,
     letter_counter: LetterCounter,
 }
 
@@ -41,6 +43,7 @@ impl Logic {
             n_guesses: 0,
             word_changed_queued: false,
             grid_changed_queued: false,
+            guess_entered_queued: false,
             letter_counter: LetterCounter::new(),
         };
 
@@ -93,7 +96,10 @@ impl Logic {
     }
 
     pub fn get_event(&mut self) -> Option<Event> {
-        if self.word_changed_queued {
+        if self.guess_entered_queued {
+            self.guess_entered_queued = false;
+            Some(Event::GuessEntered)
+        } else if self.word_changed_queued {
             self.word_changed_queued = false;
             Some(Event::WordChanged)
         } else if self.grid_changed_queued {
@@ -146,6 +152,7 @@ impl Logic {
 
         self.n_guesses += 1;
         self.grid_changed_queued = true;
+        self.guess_entered_queued = true;
     }
 
     pub fn guesses(&self) -> GuessIter<'_> {

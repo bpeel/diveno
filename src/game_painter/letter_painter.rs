@@ -110,6 +110,7 @@ impl LetterPainter {
                 self.transform_dirty = true;
             },
             logic::Event::GridChanged => self.vertices_dirty = true,
+            logic::Event::GuessEntered => self.vertices_dirty = true,
         }
     }
 
