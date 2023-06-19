@@ -14,20 +14,24 @@ impl Logic {
     pub fn new() -> Logic {
         Logic {
             word: "POTATO".to_string(),
-            in_progress_guess: String::new(),
+            in_progress_guess: "P".to_string(),
             grid_changed_queued: false,
         }
     }
 
     pub fn set_in_progress_guess(&mut self, guess: &str) {
-        self.in_progress_guess.clear();
+        let first_letter = self.word.chars().next().unwrap();
 
-        let letters = &letter_texture::COLORS[0].letters;
+        self.in_progress_guess.clear();
+        self.in_progress_guess.push(first_letter);
+
+        let mut added = 1;
 
         for ch in xsystem::unicode_chars(guess.chars()) {
             for ch in ch.to_uppercase() {
-                if letters.binary_search_by(|probe| probe.ch.cmp(&ch)).is_ok() {
+                if (added > 1 || ch != first_letter) && is_valid_letter(ch) {
                     self.in_progress_guess.push(ch);
+                    added += 1;
                 }
             }
         }
@@ -47,4 +51,10 @@ impl Logic {
             None
         }
     }
+}
+
+fn is_valid_letter(letter: char) -> bool {
+    let letters = &letter_texture::COLORS[0].letters;
+
+    letters.binary_search_by(|probe| probe.ch.cmp(&letter)).is_ok()
 }
