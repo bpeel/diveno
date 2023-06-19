@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use std::process::ExitCode;
 use std::io::Write;
 
-static LETTERS: &'static str = "ABCDEFGHIJKLMNOPQRSTUVWXYZĤŜĜĈĴŬ";
+static LETTERS: &'static str = "ABCDEFGHIJKLMNOPRSTUVZĤŜĜĈĴŬ. ";
 
 const TILE_SIZE: u32 = 128;
 const BORDER_SIZE: u32 = TILE_SIZE / 16;
