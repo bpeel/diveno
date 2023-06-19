@@ -3,6 +3,7 @@ use crate::letter_texture;
 pub const N_GUESSES: usize = 6;
 
 pub enum Event {
+    WordChanged,
     GridChanged,
 }
 
@@ -10,6 +11,7 @@ pub struct Logic {
     word: String,
     word_length: usize,
     in_progress_guess: String,
+    word_changed_queued: bool,
     grid_changed_queued: bool,
 }
 
@@ -19,6 +21,7 @@ impl Logic {
             word: String::new(),
             word_length: 0,
             in_progress_guess: String::new(),
+            word_changed_queued: false,
             grid_changed_queued: false,
         };
 
@@ -33,6 +36,7 @@ impl Logic {
         self.word_length = word.chars().count();
         self.in_progress_guess.clear();
         self.in_progress_guess.push(word.chars().next().unwrap());
+        self.word_changed_queued = true;
         self.grid_changed_queued = true;
     }
 
@@ -69,7 +73,10 @@ impl Logic {
     }
 
     pub fn get_event(&mut self) -> Option<Event> {
-        if self.grid_changed_queued {
+        if self.word_changed_queued {
+            self.word_changed_queued = false;
+            Some(Event::WordChanged)
+        } else if self.grid_changed_queued {
             self.grid_changed_queued = false;
             Some(Event::GridChanged)
         } else {

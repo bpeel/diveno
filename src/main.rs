@@ -170,6 +170,7 @@ fn handle_event(game_data: &mut GameData, event: Event) {
 fn flush_logic_events(game_data: &mut GameData) {
     while let Some(event) = game_data.logic.get_event() {
         match event {
+            logic::Event::WordChanged |
             logic::Event::GridChanged => {
                 game_data.redraw_queued = true;
             },

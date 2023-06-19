@@ -105,6 +105,10 @@ impl LetterPainter {
 
     pub fn handle_logic_event(&mut self, event: &logic::Event) {
         match event {
+            logic::Event::WordChanged => {
+                self.vertices_dirty = true;
+                self.transform_dirty = true;
+            },
             logic::Event::GridChanged => self.vertices_dirty = true,
         }
     }
