@@ -86,6 +86,7 @@ struct GameData<'a> {
     context: &'a mut Context,
     logic: logic::Logic,
     game_painter: game_painter::GamePainter,
+    in_progress_guess: String,
     redraw_queued: bool,
     should_quit: bool,
 }
@@ -109,17 +110,38 @@ impl<'a> GameData<'a> {
             context,
             logic: logic::Logic::new(),
             game_painter,
+            in_progress_guess: String::new(),
             redraw_queued: true,
             should_quit: false,
         })
     }
 }
 
+fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
+    match code {
+        Keycode::Escape => game_data.should_quit = true,
+        Keycode::Backspace => {
+            game_data.in_progress_guess.pop();
+            game_data.logic.set_in_progress_guess(&game_data.in_progress_guess);
+        },
+        code => {
+            if let Some(ch) = char::from_u32(code as u32) {
+                if ch.is_alphabetic() {
+                    game_data.in_progress_guess.push(ch);
+                    game_data.logic.set_in_progress_guess(
+                        &game_data.in_progress_guess
+                    );
+                }
+            }
+        }
+    }
+}
+
 fn handle_event(game_data: &mut GameData, event: Event) {
     match event {
-        Event::Quit {..} |
-        Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-            game_data.should_quit = true;
+        Event::Quit {..} => game_data.should_quit = true,
+        Event::KeyDown { keycode: Some(code), .. } => {
+            handle_keycode_down(game_data, code);
         },
         Event::Window { win_event, .. } => {
             match win_event {
