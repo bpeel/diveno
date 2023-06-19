@@ -1,5 +1,7 @@
 use crate::letter_texture;
 
+pub const N_GUESSES: usize = 6;
+
 pub enum Event {
     GridChanged,
 }
