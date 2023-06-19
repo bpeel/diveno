@@ -22,6 +22,7 @@ pub struct LetterPainter {
     width: u32,
     height: u32,
     transform_dirty: bool,
+    vertices_dirty: bool,
     // Top-left corner of the grid in clip-space coordinates
     grid_x: f32,
     grid_y: f32,
@@ -49,6 +50,7 @@ impl LetterPainter {
             width: 1,
             height: 1,
             transform_dirty: true,
+            vertices_dirty: true,
             grid_x: 1.0,
             grid_y: 1.0,
             tile_w: 1.0,
@@ -64,16 +66,67 @@ impl LetterPainter {
             self.transform_dirty = false;
         }
 
+        if self.vertices_dirty {
+            self.update_vertices(logic);
+            self.vertices_dirty = false;
+        }
+
+        self.array_object.bind();
+
+        let gl = &self.paint_data.gl;
+
+        unsafe {
+            gl.bind_texture(
+                glow::TEXTURE_2D,
+                Some(self.paint_data.images.letters.id()),
+            );
+
+            gl.use_program(Some(self.paint_data.shaders.letter.id()));
+
+            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+            gl.enable(glow::BLEND);
+
+            gl.draw_elements(
+                glow::TRIANGLES,
+                self.vertices.len() as i32 / 4 * 6,
+                glow::UNSIGNED_SHORT,
+                0, // offset
+            );
+
+            gl.disable(glow::BLEND);
+        }
+    }
+
+    pub fn update_fb_size(&mut self, width: u32, height: u32) {
+        self.width = width;
+        self.height = height;
+        self.transform_dirty = true;
+    }
+
+    pub fn handle_logic_event(&mut self, event: &logic::Event) {
+        match event {
+            logic::Event::GridChanged => self.vertices_dirty = true,
+        }
+    }
+
+    fn update_transform(&mut self) {
+        let smallest_axis = std::cmp::min(self.width, self.height);
+        let tile_size_pixels = smallest_axis as f32 / 10.0;
+
+        self.tile_w = tile_size_pixels * 2.0 / self.width as f32;
+        self.tile_h = tile_size_pixels * 2.0 / self.height as f32;
+        self.grid_x = -self.tile_w * 3.0;
+        self.grid_y = self.tile_h * 3.0;
+
+        self.vertices_dirty = true;
+    }
+
+    fn update_vertices(&mut self, logic: &logic::Logic) {
         self.vertices.clear();
 
-        self.add_letter(0, 0, 0, 'Ĉ');
-        self.add_letter(0, 1, 0, 'A');
-        self.add_letter(0, 2, 0, 'P');
-        self.add_letter(0, 3, 0, 'O');
-        self.add_letter(1, 0, 1, 'K');
-        self.add_letter(1, 1, 1, 'A');
-        self.add_letter(1, 2, 1, 'T');
-        self.add_letter(1, 3, 1, 'O');
+        for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
+            self.add_letter(0, pos as u32, 0, ch);
+        }
 
         let n_quads = self.vertices.len() as u32 / 4;
 
@@ -102,49 +155,7 @@ impl LetterPainter {
                 buffer_data,
                 glow::DYNAMIC_DRAW,
             );
-
-            self.array_object.bind();
-
-            let program = self.paint_data.shaders.letter.id();
-
-            gl.bind_texture(
-                glow::TEXTURE_2D,
-                Some(self.paint_data.images.letters.id()),
-            );
-
-            gl.use_program(Some(program));
-
-            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-            gl.enable(glow::BLEND);
-
-            gl.draw_elements(
-                glow::TRIANGLES,
-                n_quads as i32 * 6,
-                glow::UNSIGNED_SHORT,
-                0, // offset
-            );
-
-            gl.disable(glow::BLEND);
         }
-    }
-
-    pub fn update_fb_size(&mut self, width: u32, height: u32) {
-        self.width = width;
-        self.height = height;
-        self.transform_dirty = true;
-    }
-
-    pub fn handle_logic_event(&mut self, event: &logic::Event) {
-    }
-
-    fn update_transform(&mut self) {
-        let smallest_axis = std::cmp::min(self.width, self.height);
-        let tile_size_pixels = smallest_axis as f32 / 10.0;
-
-        self.tile_w = tile_size_pixels * 2.0 / self.width as f32;
-        self.tile_h = tile_size_pixels * 2.0 / self.height as f32;
-        self.grid_x = -self.tile_w * 3.0;
-        self.grid_y = self.tile_h * 3.0;
     }
 
     fn add_letter(&mut self, color: usize, x: u32, y: u32, letter: char) {
