@@ -125,6 +125,7 @@ fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
             game_data.in_progress_guess.pop();
             game_data.logic.set_in_progress_guess(&game_data.in_progress_guess);
         },
+        Keycode::Return => game_data.logic.enter_guess(),
         code => {
             if let Some(ch) = char::from_u32(code as u32) {
                 if ch.is_alphabetic() {
