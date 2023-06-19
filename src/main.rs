@@ -7,6 +7,7 @@ mod logic;
 mod buffer;
 mod letter_texture;
 mod array_object;
+mod quad_tool;
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
