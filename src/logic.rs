@@ -68,6 +68,10 @@ impl Logic {
         self.visible_letters = 1;
     }
 
+    pub fn word(&self) -> &str {
+        &self.word
+    }
+
     pub fn word_length(&self) -> usize {
         self.word_length
     }
