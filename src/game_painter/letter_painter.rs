@@ -6,7 +6,7 @@ use crate::letter_texture;
 use crate::shaders;
 use crate::array_object::ArrayObject;
 use glow::HasContext;
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::{Vector3, Perspective3};
 use std::f32::consts::PI;
 use std::time::Instant;
 
@@ -156,18 +156,37 @@ impl LetterPainter {
 
     fn update_transform(&mut self, logic: &logic::Logic) {
         let smallest_axis = std::cmp::min(self.width, self.height);
-        let tile_size_pixels = smallest_axis as f32 / 10.0;
+        // Ten tiles should fit along the smallest axis
+        const TILE_SIZE: f32 = 2.0 / 10.0;
+        const FOV: f32 = PI / 4.0;
 
-        let mut matrix = Matrix4::new_nonuniform_scaling(&Vector3::new(
-            tile_size_pixels * 2.0 / self.width as f32,
-            -tile_size_pixels * 2.0 / self.height as f32,
-            1.0,
-        ));
-        matrix.prepend_translation_mut(&Vector3::new(
-            -(logic.word_length() as f32) / 2.0,
-            -(logic::N_GUESSES as f32) / 2.0,
-            0.0,
-        ));
+        let y_top = self.height as f32 / smallest_axis as f32;
+
+        // The distance to the point where the y coordinate top of the
+        // frustrum is y_top for the chosen field of view. This
+        // will be the zero z-coordinate after the translation
+        let zero_distance = y_top / (FOV / 2.0).tan();
+
+        let perspective = Perspective3::new(
+            self.width as f32 / self.height as f32,
+            FOV,
+            zero_distance - TILE_SIZE * 2.0,
+            zero_distance + TILE_SIZE * 2.0,
+        );
+
+        let matrix = perspective
+            .as_matrix()
+            .prepend_translation(&Vector3::new(0.0, 0.0, -zero_distance))
+            .prepend_nonuniform_scaling(&Vector3::new(
+                TILE_SIZE,
+                -TILE_SIZE,
+                TILE_SIZE,
+            ))
+            .prepend_translation(&Vector3::new(
+                -(logic.word_length() as f32) / 2.0,
+                -(logic::N_GUESSES as f32) / 2.0,
+                0.0,
+            ));
 
         let gl = &self.paint_data.gl;
 
