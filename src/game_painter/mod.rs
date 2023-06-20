@@ -31,7 +31,7 @@ impl GamePainter {
         })
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) {
+    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
         let gl = &self.paint_data.gl;
 
         if self.viewport_dirty {
@@ -46,7 +46,7 @@ impl GamePainter {
             gl.clear(glow::COLOR_BUFFER_BIT);
         }
 
-        self.letter_painter.paint(logic);
+        self.letter_painter.paint(logic)
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {

@@ -186,9 +186,9 @@ fn flush_logic_events(game_data: &mut GameData) {
 }
 
 fn redraw(game_data: &mut GameData) {
-    game_data.redraw_queued = false;
-
-    game_data.game_painter.paint(&game_data.logic);
+    if !game_data.game_painter.paint(&game_data.logic) {
+        game_data.redraw_queued = false;
+    }
 
     game_data.context.window.gl_swap_window();
 }

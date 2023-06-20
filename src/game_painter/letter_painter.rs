@@ -66,7 +66,7 @@ impl LetterPainter {
         })
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) {
+    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
         if self.transform_dirty {
             self.update_transform(logic);
             self.transform_dirty = false;
@@ -101,6 +101,8 @@ impl LetterPainter {
 
             gl.disable(glow::BLEND);
         }
+
+        false
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
