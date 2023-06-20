@@ -7,6 +7,13 @@ use crate::shaders;
 use crate::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Matrix4, Vector3};
+use std::f32::consts::PI;
+use std::time::Instant;
+
+// Number of seconds per letter for the animation
+const SECONDS_PER_LETTER: f32 = 0.3;
+// Time for a letter to turn
+const TURN_TIME: f32 = 0.5;
 
 #[repr(C)]
 struct Vertex {
@@ -33,6 +40,7 @@ pub struct LetterPainter {
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
     most_quads: u32,
+    animation_start_time: Option<Instant>,
 }
 
 impl LetterPainter {
@@ -63,17 +71,33 @@ impl LetterPainter {
             mvp_uniform,
             vertices: Vec::new(),
             most_quads: 0,
+            animation_start_time: None,
         })
     }
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+        let animation_time = self.animation_start_time.and_then(|start_time| {
+            let secs = start_time.elapsed().as_millis() as f32 / 1000.0;
+
+            let total_time = (logic.word_length() as f32 - 1.0)
+                * SECONDS_PER_LETTER
+                + TURN_TIME;
+
+            if secs < total_time {
+                Some(secs)
+            } else {
+                self.animation_start_time = None;
+                None
+            }
+        });
+
         if self.transform_dirty {
             self.update_transform(logic);
             self.transform_dirty = false;
         }
 
         if self.vertices_dirty {
-            self.update_vertices(logic);
+            self.update_vertices(logic, animation_time);
             self.vertices_dirty = false;
         }
 
@@ -102,7 +126,12 @@ impl LetterPainter {
             gl.disable(glow::BLEND);
         }
 
-        false
+        if animation_time.is_some() {
+            self.vertices_dirty = true;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -118,7 +147,10 @@ impl LetterPainter {
                 self.transform_dirty = true;
             },
             logic::Event::GridChanged => self.vertices_dirty = true,
-            logic::Event::GuessEntered => self.vertices_dirty = true,
+            logic::Event::GuessEntered => {
+                self.animation_start_time = Some(Instant::now());
+                self.vertices_dirty = true;
+            },
         }
     }
 
@@ -151,32 +183,43 @@ impl LetterPainter {
         self.vertices_dirty = true;
     }
 
-    fn fill_vertices_array(&mut self, logic: &logic::Logic) {
+    fn fill_vertices_array(
+        &mut self,
+        logic: &logic::Logic,
+        animation_time: Option<f32>,
+    ) {
         self.vertices.clear();
 
         let mut guess_num = 0;
 
         for guess in logic.guesses() {
-            for (x, letter) in guess.iter().enumerate() {
-                let color = match letter.result {
-                    logic::LetterResult::Correct => 2,
-                    logic::LetterResult::WrongPosition => 3,
-                    logic::LetterResult::Wrong => 1,
-                };
-
-                self.add_letter(
-                    color,
-                    x as u32,
+            if animation_time.is_some()
+                && guess_num >= logic.n_guesses() - 1
+            {
+                self.add_animated_guess(
+                    guess,
                     guess_num as u32,
-                    letter.letter
+                    animation_time.unwrap()
                 );
+            } else {
+                self.add_guess(guess, guess_num as u32);
             }
 
             guess_num += 1;
         }
 
         if guess_num < logic::N_GUESSES {
-            self.add_in_progress_guess(logic, guess_num as u32);
+            let visible_letters = if animation_time.is_some() {
+                0
+            } else {
+                logic.visible_letters()
+            };
+
+            self.add_in_progress_guess(
+                logic,
+                guess_num as u32,
+                visible_letters,
+            );
 
             for y in guess_num + 1..logic::N_GUESSES {
                 for x in 0..logic.word_length() {
@@ -186,7 +229,68 @@ impl LetterPainter {
         }
     }
 
-    fn add_in_progress_guess(&mut self, logic: &logic::Logic, y: u32) {
+    fn add_guess(
+        &mut self,
+        guess: &[logic::Letter],
+        y: u32,
+    ) {
+        for (x, letter) in guess.iter().enumerate() {
+            let color = match letter.result {
+                logic::LetterResult::Correct => 2,
+                logic::LetterResult::WrongPosition => 3,
+                logic::LetterResult::Wrong => 1,
+            };
+
+            self.add_letter(
+                color,
+                x as u32,
+                y,
+                letter.letter
+            );
+        }
+    }
+
+    fn add_animated_guess(
+        &mut self,
+        guess: &[logic::Letter],
+        y: u32,
+        animation_time: f32,
+    ) {
+        for (x, letter) in guess.iter().enumerate() {
+            let color = match letter.result {
+                logic::LetterResult::Correct => 2,
+                logic::LetterResult::WrongPosition => 3,
+                logic::LetterResult::Wrong => 1,
+            };
+
+            let angle = ((animation_time - SECONDS_PER_LETTER * x as f32)
+                         / TURN_TIME)
+                .clamp(0.0, 1.0)
+                * PI;
+
+            self.add_rotated_letter(
+                0,
+                x as u32,
+                y,
+                angle,
+                letter.letter,
+            );
+            self.add_rotated_letter(
+                color,
+                x as u32,
+                y,
+                angle + PI,
+                letter.letter,
+            );
+        }
+    }
+
+    fn add_in_progress_guess(
+        &mut self,
+        logic: &logic::Logic,
+        y: u32,
+        visible_letters: u32,
+    ) {
         let mut added = 0;
 
         for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
@@ -195,8 +299,6 @@ impl LetterPainter {
         }
 
         if added == 0 {
-            let visible_letters = logic.visible_letters();
-
             for (index, ch) in logic.word().chars().enumerate() {
                 let ch = if visible_letters & (1 << index) != 0 {
                     ch
@@ -213,8 +315,12 @@ impl LetterPainter {
         }
     }
 
-    fn update_vertices(&mut self, logic: &logic::Logic) {
-        self.fill_vertices_array(logic);
+    fn update_vertices(
+        &mut self,
+        logic: &logic::Logic,
+        animation_time: Option<f32>,
+    ) {
+        self.fill_vertices_array(logic, animation_time);
 
         let n_quads = self.vertices.len() as u32 / 4;
 
