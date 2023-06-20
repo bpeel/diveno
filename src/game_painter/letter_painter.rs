@@ -14,6 +14,10 @@ struct Vertex {
     y: f32,
     s: u16,
     t: u16,
+    // Vertical Rotation centre
+    ry: f32,
+    // Rotation angle
+    ra: f32,
 }
 
 pub struct LetterPainter {
@@ -240,7 +244,14 @@ impl LetterPainter {
         }
     }
 
-    fn add_letter(&mut self, color: usize, x: u32, y: u32, letter: char) {
+    fn add_rotated_letter(
+        &mut self,
+        color: usize,
+        x: u32,
+        y: u32,
+        rotation: f32,
+        letter: char
+    ) {
         let letters = &letter_texture::COLORS[color].letters;
 
         let Ok(letter_index) = letters.binary_search_by(|probe| {
@@ -260,25 +271,43 @@ impl LetterPainter {
             y,
             s: letter.s1,
             t: letter.t1,
+            ry: y + 0.5,
+            ra: rotation,
         });
         self.vertices.push(Vertex {
             x,
             y: y + 1.0,
             s: letter.s1,
             t: letter.t2,
+            ry: y + 0.5,
+            ra: rotation,
         });
         self.vertices.push(Vertex {
             x: x + 1.0,
             y,
             s: letter.s2,
             t: letter.t1,
+            ry: y + 0.5,
+            ra: rotation,
         });
         self.vertices.push(Vertex {
             x: x + 1.0,
             y: y + 1.0,
             s: letter.s2,
             t: letter.t2,
+            ry: y + 0.5,
+            ra: rotation,
         });
+    }
+
+    fn add_letter(
+        &mut self,
+        color: usize,
+        x: u32,
+        y: u32,
+        letter: char
+    ) {
+        self.add_rotated_letter(color, x, y, 0.0, letter);
     }
 }
 
@@ -286,6 +315,16 @@ fn create_array_object(
     paint_data: Rc<PaintData>,
     buffer: Rc<Buffer>,
 ) -> Result<ArrayObject, String> {
+    let rotation_attrib = unsafe {
+        match paint_data.gl.get_attrib_location(
+            paint_data.shaders.letter.id(),
+            "rotation",
+        ) {
+            Some(l) => l,
+            None => return Err("Missing “rotation” attrib".to_string()),
+        }
+    };
+
     let mut array_object = ArrayObject::new(paint_data)?;
 
     array_object.set_attribute(
@@ -297,14 +336,26 @@ fn create_array_object(
         Rc::clone(&buffer),
         0, // offset
     );
+
     array_object.set_attribute(
         shaders::TEX_COORD_ATTRIB,
         2, // size
         glow::UNSIGNED_SHORT,
         true, // normalized
         std::mem::size_of::<Vertex>() as i32,
-        buffer,
+        Rc::clone(&buffer),
         std::mem::size_of::<f32>() as i32 * 2,
+    );
+
+    array_object.set_attribute(
+        rotation_attrib,
+        2, // size
+        glow::FLOAT,
+        false, // normalized
+        std::mem::size_of::<Vertex>() as i32,
+        buffer,
+        std::mem::size_of::<f32>() as i32 * 2
+            + std::mem::size_of::<u16>() as i32 * 2,
     );
 
     Ok(array_object)
