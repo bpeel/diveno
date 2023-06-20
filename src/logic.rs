@@ -31,6 +31,10 @@ pub struct Logic {
     grid_changed_queued: bool,
     guess_entered_queued: bool,
     letter_counter: LetterCounter,
+    // Bitmask of letters from the word that the player can see,
+    // either because it was given as a hint or because they guessed
+    // the right letter position.
+    visible_letters: u32,
 }
 
 impl Logic {
@@ -45,6 +49,7 @@ impl Logic {
             grid_changed_queued: false,
             guess_entered_queued: false,
             letter_counter: LetterCounter::new(),
+            visible_letters: 1,
         };
 
         logic.set_word("POTATO");
@@ -57,10 +62,10 @@ impl Logic {
         self.word.push_str(word);
         self.word_length = word.chars().count();
         self.in_progress_guess.clear();
-        self.in_progress_guess.push(word.chars().next().unwrap());
         self.word_changed_queued = true;
         self.grid_changed_queued = true;
         self.n_guesses = 0;
+        self.visible_letters = 1;
     }
 
     pub fn word_length(&self) -> usize {
@@ -71,13 +76,17 @@ impl Logic {
         let first_letter = self.word.chars().next().unwrap();
 
         self.in_progress_guess.clear();
-        self.in_progress_guess.push(first_letter);
 
-        let mut added = 1;
+        let mut added = 0;
 
         'add_loop: for ch in xsystem::unicode_chars(guess.chars()) {
             for ch in ch.to_uppercase() {
-                if (added > 1 || ch != first_letter) && is_valid_letter(ch) {
+                if is_valid_letter(ch) {
+                    if added == 0 && ch != first_letter {
+                        self.in_progress_guess.push(first_letter);
+                        added += 1;
+                    }
+
                     self.in_progress_guess.push(ch);
                     added += 1;
 
@@ -141,6 +150,13 @@ impl Logic {
             return;
         }
 
+        // Add all of the correct guesses as visible letters
+        for (index, &Letter { result, .. }) in guess.iter().enumerate() {
+            if result == LetterResult::Correct {
+                self.visible_letters |= 1 << index;
+            }
+        }
+
         for letter in guess.iter_mut() {
             if letter.result == LetterResult::Wrong
                 && self.letter_counter.pop(letter.letter)
@@ -154,6 +170,10 @@ impl Logic {
         self.n_guesses += 1;
         self.grid_changed_queued = true;
         self.guess_entered_queued = true;
+    }
+
+    pub fn visible_letters(&self) -> u32 {
+        self.visible_letters
     }
 
     pub fn guesses(&self) -> GuessIter<'_> {
