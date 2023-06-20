@@ -183,6 +183,10 @@ impl Logic {
     pub fn guesses(&self) -> GuessIter<'_> {
         GuessIter::new(self)
     }
+
+    pub fn n_guesses(&self) -> usize {
+        self.n_guesses
+    }
 }
 
 pub struct GuessIter<'a> {
