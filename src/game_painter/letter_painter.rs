@@ -6,6 +6,7 @@ use crate::letter_texture;
 use crate::shaders;
 use crate::array_object::ArrayObject;
 use glow::HasContext;
+use nalgebra::{Matrix4, Vector3};
 
 #[repr(C)]
 struct Vertex {
@@ -23,12 +24,7 @@ pub struct LetterPainter {
     height: u32,
     transform_dirty: bool,
     vertices_dirty: bool,
-    // Top-left corner of the grid in clip-space coordinates
-    grid_x: f32,
-    grid_y: f32,
-    // Size of a letter in clip-space coordinates
-    tile_w: f32,
-    tile_h: f32,
+    mvp_uniform: glow::NativeUniformLocation,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
@@ -42,6 +38,15 @@ impl LetterPainter {
             Rc::clone(&paint_data),
             Rc::clone(&buffer),
         )?;
+        let mvp_uniform = unsafe {
+            match paint_data.gl.get_uniform_location(
+                paint_data.shaders.letter.id(),
+                "mvp",
+            ) {
+                Some(u) => u,
+                None => return Err("Missing “mvp” uniform".to_string()),
+            }
+        };
 
         Ok(LetterPainter {
             buffer,
@@ -51,10 +56,7 @@ impl LetterPainter {
             height: 1,
             transform_dirty: true,
             vertices_dirty: true,
-            grid_x: 1.0,
-            grid_y: 1.0,
-            tile_w: 1.0,
-            tile_h: 1.0,
+            mvp_uniform,
             vertices: Vec::new(),
             most_quads: 0,
         })
@@ -118,10 +120,27 @@ impl LetterPainter {
         let smallest_axis = std::cmp::min(self.width, self.height);
         let tile_size_pixels = smallest_axis as f32 / 10.0;
 
-        self.tile_w = tile_size_pixels * 2.0 / self.width as f32;
-        self.tile_h = tile_size_pixels * 2.0 / self.height as f32;
-        self.grid_x = -self.tile_w * logic.word_length() as f32 / 2.0;
-        self.grid_y = self.tile_h * logic::N_GUESSES as f32 / 2.0;
+        let mut matrix = Matrix4::new_nonuniform_scaling(&Vector3::new(
+            tile_size_pixels * 2.0 / self.width as f32,
+            -tile_size_pixels * 2.0 / self.height as f32,
+            1.0,
+        ));
+        matrix.prepend_translation_mut(&Vector3::new(
+            -(logic.word_length() as f32) / 2.0,
+            -(logic::N_GUESSES as f32) / 2.0,
+            0.0,
+        ));
+
+        let gl = &self.paint_data.gl;
+
+        unsafe {
+            gl.use_program(Some(self.paint_data.shaders.letter.id()));
+            gl.uniform_matrix_4_f32_slice(
+                Some(&self.mvp_uniform),
+                false, // transpose
+                matrix.as_slice(),
+            );
+        }
 
         self.vertices_dirty = true;
     }
@@ -233,8 +252,8 @@ impl LetterPainter {
 
         let letter = &letters[letter_index];
 
-        let x = self.grid_x + x as f32 * self.tile_w;
-        let y = self.grid_y - y as f32 * self.tile_h;
+        let x = x as f32;
+        let y = y as f32;
 
         self.vertices.push(Vertex {
             x,
@@ -244,19 +263,19 @@ impl LetterPainter {
         });
         self.vertices.push(Vertex {
             x,
-            y: y - self.tile_h,
+            y: y + 1.0,
             s: letter.s1,
             t: letter.t2,
         });
         self.vertices.push(Vertex {
-            x: x + self.tile_w,
+            x: x + 1.0,
             y,
             s: letter.s2,
             t: letter.t1,
         });
         self.vertices.push(Vertex {
-            x: x + self.tile_w,
-            y: y - self.tile_h,
+            x: x + 1.0,
+            y: y + 1.0,
             s: letter.s2,
             t: letter.t2,
         });
