@@ -121,20 +121,21 @@ impl Logic {
 
         guess.clear();
 
-        let mut word_letters = self.word.chars();
+        guess.extend(
+            self.in_progress_guess
+                .chars()
+                .zip(self.word.chars())
+                .map(|(letter, word_letter)| {
+                    let result = if word_letter == letter {
+                        LetterResult::Correct
+                    } else {
+                        self.letter_counter.push(word_letter);
+                        LetterResult::Wrong
+                    };
 
-        guess.extend(self.in_progress_guess.chars().map(|letter| {
-            let word_letter = word_letters.next().unwrap();
-
-            let result = if word_letter == letter {
-                LetterResult::Correct
-            } else {
-                self.letter_counter.push(word_letter);
-                LetterResult::Wrong
-            };
-
-            Letter { letter, result }
-        }));
+                    Letter { letter, result }
+                })
+        );
 
         if guess.len() != self.word_length {
             return;
