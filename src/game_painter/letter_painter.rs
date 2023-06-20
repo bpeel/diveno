@@ -151,21 +151,39 @@ impl LetterPainter {
         }
 
         if guess_num < logic::N_GUESSES {
-            let mut added = 0;
-
-            for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
-                self.add_letter(0, pos as u32, guess_num as u32, ch);
-                added += 1;
-            }
-
-            for x in added..logic.word_length() {
-                self.add_letter(0, x as u32, guess_num as u32, '.');
-            }
+            self.add_in_progress_guess(logic, guess_num as u32);
 
             for y in guess_num + 1..logic::N_GUESSES {
                 for x in 0..logic.word_length() {
                     self.add_letter(0, x as u32, y as u32, ' ');
                 }
+            }
+        }
+    }
+
+    fn add_in_progress_guess(&mut self, logic: &logic::Logic, y: u32) {
+        let mut added = 0;
+
+        for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
+            self.add_letter(0, pos as u32, y, ch);
+            added += 1;
+        }
+
+        if added == 0 {
+            let visible_letters = logic.visible_letters();
+
+            for (index, ch) in logic.word().chars().enumerate() {
+                let ch = if visible_letters & (1 << index) != 0 {
+                    ch
+                } else {
+                    '.'
+                };
+
+                self.add_letter(0, index as u32, y, ch);
+            }
+        } else {
+            for x in added..logic.word_length() {
+                self.add_letter(0, x as u32, y, '.');
             }
         }
     }
