@@ -16,6 +16,12 @@ pub struct GamePainter {
 
 impl GamePainter {
     pub fn new(paint_data: Rc<PaintData>) -> Result<GamePainter, String> {
+        let gl = &paint_data.gl;
+
+        unsafe {
+            gl.enable(glow::CULL_FACE);
+        }
+
         Ok(GamePainter {
             paint_data: Rc::clone(&paint_data),
             letter_painter: LetterPainter::new(paint_data)?,
