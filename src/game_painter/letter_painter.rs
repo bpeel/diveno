@@ -23,8 +23,8 @@ struct Vertex {
     t: u16,
     // Vertical Rotation centre
     ry: f32,
-    // Rotation angle
-    ra: f32,
+    // Rotation progress
+    rp: f32,
 }
 
 pub struct LetterPainter {
@@ -282,23 +282,23 @@ impl LetterPainter {
                 logic::LetterResult::Wrong => 1,
             };
 
-            let angle = ((animation_time - SECONDS_PER_LETTER * x as f32)
-                         / TURN_TIME)
-                .clamp(0.0, 1.0)
-                * PI;
+            let rotation_progress =
+                ((animation_time - SECONDS_PER_LETTER * x as f32)
+                 / TURN_TIME)
+                .clamp(0.0, 1.0);
 
             self.add_rotated_letter(
                 0,
                 x as u32,
                 y,
-                angle,
+                rotation_progress,
                 letter.letter,
             );
             self.add_rotated_letter(
                 color,
                 x as u32,
                 y,
-                angle + PI,
+                rotation_progress + 1.0,
                 letter.letter,
             );
         }
@@ -376,7 +376,7 @@ impl LetterPainter {
         color: usize,
         x: u32,
         y: u32,
-        rotation: f32,
+        rotation_progress: f32,
         letter: char
     ) {
         let letters = &letter_texture::COLORS[color].letters;
@@ -399,7 +399,7 @@ impl LetterPainter {
             s: letter.s1,
             t: letter.t1,
             ry: y + 0.5,
-            ra: rotation,
+            rp: rotation_progress,
         });
         self.vertices.push(Vertex {
             x,
@@ -407,7 +407,7 @@ impl LetterPainter {
             s: letter.s1,
             t: letter.t2,
             ry: y + 0.5,
-            ra: rotation,
+            rp: rotation_progress,
         });
         self.vertices.push(Vertex {
             x: x + 1.0,
@@ -415,7 +415,7 @@ impl LetterPainter {
             s: letter.s2,
             t: letter.t1,
             ry: y + 0.5,
-            ra: rotation,
+            rp: rotation_progress,
         });
         self.vertices.push(Vertex {
             x: x + 1.0,
@@ -423,7 +423,7 @@ impl LetterPainter {
             s: letter.s2,
             t: letter.t2,
             ry: y + 0.5,
-            ra: rotation,
+            rp: rotation_progress,
         });
     }
 
