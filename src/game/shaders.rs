@@ -89,7 +89,7 @@ impl Program {
                 "tex",
             ) {
                 program.gl.use_program(Some(program.id));
-                program.gl.uniform_1_u32(Some(&location), 0);
+                program.gl.uniform_1_i32(Some(&location), 0);
             }
         }
 
