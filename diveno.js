@@ -22,9 +22,37 @@ function queue_download(diveno) {
   } else {
     let canvas = document.getElementById("canvas");
     canvas.style.display = "block";
-    let rect = canvas.getBoundingClientRect();
-    diveno.update_fb_size(rect.width, rect.height);
-    diveno.redraw();
+
+    let redrawQueued = false;
+
+    function redrawCb() {
+      redrawQueued = false;
+
+      if (diveno.redraw())
+        queueRedraw();
+    }
+
+    function queueRedraw() {
+      if (redrawQueued)
+        return;
+
+      redrawQueued = true;
+      window.requestAnimationFrame(redrawCb);
+    }
+
+    function handleSizeChange() {
+      let rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      diveno.update_fb_size(rect.width, rect.height);
+      queueRedraw();
+    }
+
+    handleSizeChange();
+
+    let observer = new ResizeObserver(handleSizeChange);
+
+    observer.observe(canvas);
   }
 }
 
