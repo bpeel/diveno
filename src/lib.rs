@@ -89,6 +89,8 @@ pub struct Diveno {
 impl Diveno {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Diveno {
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
         let (context, shader_loader) = match Context::new() {
             Ok(context) => {
                 let shader_loader = game::shaders::ShaderLoader::new(
