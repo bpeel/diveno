@@ -4,7 +4,7 @@ use sdl2::image::LoadSurface;
 use sdl2::surface::Surface;
 use sdl2::pixels::PixelFormatEnum;
 use glow::HasContext;
-use crate::game::images::{Texture, ImageSet};
+use crate::game::images::{ImageSet, ImageLoader};
 
 fn copy_image(
     dst: &mut Vec<u8>,
@@ -107,9 +107,9 @@ fn copy_mipmap_surface_to_texture(
 
 
 fn load_mipmap_texture(
-    gl: Rc<glow::Context>,
+    gl: &glow::Context,
     filename: &str,
-) -> Result<Texture, String> {
+) -> Result<glow::Texture, String> {
     let path: PathBuf = ["data", filename].iter().collect();
 
     let surface = Surface::from_file(path)?;
@@ -144,15 +144,21 @@ fn load_mipmap_texture(
 
     surface.with_lock(|pixels| {
         copy_mipmap_surface_to_texture(
-            &gl,
+            gl,
             &surface,
             pixels,
         )
     })?;
 
-    Ok(Texture::new(gl, id))
+    Ok(id)
 }
 
 pub fn load_image_set(gl: &Rc<glow::Context>) -> Result<ImageSet, String> {
-    ImageSet::new(gl, load_mipmap_texture)
+    let mut loader = ImageLoader::new(Rc::clone(gl));
+
+    while let Some(filename) = loader.next_filename() {
+        loader.loaded(load_mipmap_texture(&gl, filename)?);
+    }
+
+    Ok(loader.complete())
 }

@@ -85,6 +85,21 @@ pub struct Diveno {
 }
 
 #[cfg(target_arch = "wasm32")]
+fn load_fake_image_set(
+    gl: Rc<glow::Context>,
+) -> Result<game::images::ImageSet, String> {
+    let letters = unsafe {
+        gl.create_texture()?
+    };
+
+    let mut image_loader = game::images::ImageLoader::new(gl);
+
+    image_loader.loaded(letters);
+
+    Ok(image_loader.complete())
+}
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 impl Diveno {
     #[wasm_bindgen(constructor)]
@@ -154,19 +169,13 @@ impl Diveno {
             return;
         };
 
-        let letters = unsafe {
-            match gl.create_texture() {
-                Ok(t) => t,
-                Err(e) => {
-                    show_error(&e);
-                    return;
-                }
-            }
+        let images = match load_fake_image_set(Rc::clone(gl)) {
+            Ok(s) => s,
+            Err(e) => {
+                show_error(&e);
+                return;
+            },
         };
-
-        let letters = game::images::Texture::new(Rc::clone(gl), letters);
-
-        let images = game::images::ImageSet { letters };
 
         let paint_data = Rc::new(game::paint_data::PaintData::new(
             Rc::clone(gl),
