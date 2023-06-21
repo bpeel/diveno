@@ -36,6 +36,7 @@ fn show_error(message: &str) {
 struct Context {
     gl: Rc<glow::Context>,
     canvas: web_sys::HtmlCanvasElement,
+    input: web_sys::HtmlInputElement,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -57,6 +58,12 @@ impl Context {
             return Err("failed to get canvas element".to_string());
         };
 
+        let Some(input) = document.get_element_by_id("input")
+            .and_then(|i| i.dyn_into::<web_sys::HtmlInputElement>().ok())
+        else {
+            return Err("failed to get input element".to_string());
+        };
+
         let Some(context) = canvas.get_context_with_context_options(
             "webgl",
             web_sys::WebGlContextAttributes::new().alpha(false),
@@ -71,6 +78,7 @@ impl Context {
 
         Ok(Context {
             canvas,
+            input,
             gl,
         })
     }
@@ -284,7 +292,12 @@ impl Diveno {
 
         while let Some(event) = self.logic.get_event() {
             match event {
-                game::logic::Event::GuessEntered |
+                game::logic::Event::GuessEntered => {
+                    if let Some(ref context) = self.context {
+                        context.input.set_value("");
+                    }
+                    redraw_queued = true;
+                },
                 game::logic::Event::WordChanged |
                 game::logic::Event::GridChanged => {
                     redraw_queued = true;
@@ -311,5 +324,17 @@ impl Diveno {
 
     pub fn is_ready(&self) -> bool {
         self.game_painter.is_some()
+    }
+
+    pub fn set_in_progress_guess(&mut self, guess: &str) -> bool {
+        self.logic.set_in_progress_guess(guess);
+
+        self.flush_logic_events()
+    }
+
+    pub fn enter_guess(&mut self) -> bool {
+        self.logic.enter_guess();
+
+        self.flush_logic_events()
     }
 }

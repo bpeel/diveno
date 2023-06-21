@@ -34,6 +34,20 @@ function start_game(diveno) {
   let observer = new ResizeObserver(handleSizeChange);
 
   observer.observe(canvas);
+
+  let input = document.getElementById("input");
+  input.style.display = "block";
+  input.focus({ preventScroll: true });
+
+  input.addEventListener("input", (event) => {
+    if (diveno.set_in_progress_guess(input.value))
+      queueRedraw();
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key == "Enter" && diveno.enter_guess())
+      queueRedraw();
+  });
 }
 
 function queue_data_download(diveno) {
