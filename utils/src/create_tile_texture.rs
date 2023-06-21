@@ -180,7 +180,7 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
     let surface = cairo::ImageSurface::create(
         cairo::Format::ARgb32,
         full_width,
-        full_height + (full_height + 1) / 2,
+        full_height,
     )?;
 
     let cr = cairo::Context::new(&surface)?;
@@ -191,36 +191,7 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
     cr.paint()?;
     cr.restore()?;
 
-    let mut x = 0;
-    let mut y = 0;
-    let mut level_width = full_width;
-    let mut level_height = full_height;
-
-    for level in 0.. {
-        cr.save()?;
-        cr.translate(x as f64, y as f64);
-        cr.scale(
-            level_width as f64 / full_width as f64,
-            level_height as f64 / full_height as f64,
-        );
-
-        generate_tiles_for_all_colors(&cr, one_color_height, x_tiles)?;
-
-        cr.restore()?;
-
-        if level_width <= 1 && level_height <= 1 {
-            break;
-        }
-
-        if level & 1 == 0 {
-            y += level_height;
-        } else {
-            x += level_width;
-        }
-
-        level_width = std::cmp::max(1, level_width / 2);
-        level_height = std::cmp::max(1, level_height / 2);
-    }
+    generate_tiles_for_all_colors(&cr, one_color_height, x_tiles)?;
 
     surface.flush();
 
