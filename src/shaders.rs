@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::rc::Rc;
 use glow::HasContext;
 
@@ -157,47 +156,74 @@ pub struct Shaders {
     pub letter: Program,
 }
 
-impl Shaders {
-    pub fn new(gl: &Rc<glow::Context>) -> Result<Shaders, String> {
+struct ShaderFile {
+    name: &'static str,
+    shader_type: u32,
+}
+
+const N_SHADER_FILES: usize = 2;
+
+static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
+    ShaderFile {
+        name: "letter-vertex.glsl",
+        shader_type: glow::VERTEX_SHADER
+    },
+    ShaderFile {
+        name: "letter-fragment.glsl",
+        shader_type:
+        glow::FRAGMENT_SHADER
+    },
+];
+
+pub struct ShaderLoader {
+    gl: Rc<glow::Context>,
+    shaders: [Option<Shader>; N_SHADER_FILES],
+    n_shaders: usize,
+}
+
+impl ShaderLoader {
+    pub fn new(gl: Rc<glow::Context>) -> ShaderLoader {
+        ShaderLoader {
+            gl,
+            shaders: Default::default(),
+            n_shaders: 0,
+        }
+    }
+
+    pub fn next_filename(&self) -> Option<&'static str> {
+        if self.n_shaders < N_SHADER_FILES {
+            Some(SHADER_FILES[self.n_shaders].name)
+        } else {
+            None
+        }
+    }
+
+    pub fn loaded(&mut self, source: &str) -> Result<(), String> {
+        assert!(self.n_shaders < N_SHADER_FILES);
+
+        self.shaders[self.n_shaders] = Some(Shader::new(
+            Rc::clone(&self.gl),
+            SHADER_FILES[self.n_shaders].shader_type,
+            source,
+        )?);
+
+        self.n_shaders += 1;
+
+        Ok(())
+    }
+
+    pub fn complete(self) -> Result<Shaders, String> {
+        assert_eq!(self.n_shaders, N_SHADER_FILES);
+
+        let shaders = self.shaders.map(|s| s.unwrap());
+
+        let letter = Program::new(
+            Rc::clone(&self.gl),
+            &shaders[0..2],
+        )?;
+
         Ok(Shaders {
-            letter: create_program(
-                Rc::clone(gl),
-                "letter-vertex.glsl",
-                "letter-fragment.glsl",
-            )?,
+            letter
         })
     }
-}
-
-fn create_shader(
-    gl: Rc<glow::Context>,
-    shader_type: u32,
-    filename: &str,
-) -> Result<Shader, String> {
-    let path: PathBuf = ["data", filename].iter().collect();
-
-    match std::fs::read_to_string(&path) {
-        Err(e) => Err(format!("{}: {}", filename, e)),
-        Ok(source) => Shader::new(gl, shader_type, &source),
-    }
-}
-
-fn create_program(
-    gl: Rc<glow::Context>,
-    vertex_filename: &str,
-    fragment_filename: &str,
-) -> Result<Program, String> {
-    let shaders = [
-        create_shader(
-            Rc::clone(&gl),
-            glow::VERTEX_SHADER,
-            vertex_filename)?,
-        create_shader(
-            Rc::clone(&gl),
-            glow::FRAGMENT_SHADER,
-            fragment_filename
-        )?,
-    ];
-
-    Program::new(gl, &shaders)
 }

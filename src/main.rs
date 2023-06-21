@@ -211,6 +211,21 @@ fn main_loop(game_data: &mut GameData) {
     }
 }
 
+fn load_shaders(gl: Rc<glow::Context>) -> Result<shaders::Shaders, String> {
+    let mut loader = shaders::ShaderLoader::new(gl);
+
+    while let Some(filename) = loader.next_filename() {
+        let path: std::path::PathBuf = ["data", filename].iter().collect();
+
+        match std::fs::read_to_string(&path) {
+            Err(e) => return Err(format!("{}: {}", filename, e)),
+            Ok(s) => loader.loaded(&s)?,
+        }
+    }
+
+    loader.complete()
+}
+
 pub fn main() -> ExitCode {
     let mut context = match Context::new() {
         Ok(c) => c,
@@ -220,7 +235,7 @@ pub fn main() -> ExitCode {
         },
     };
 
-    let shaders = match shaders::Shaders::new(&context.gl) {
+    let shaders = match load_shaders(Rc::clone(&context.gl)) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{}", e);
