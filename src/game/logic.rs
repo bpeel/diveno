@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::letter_texture;
+use super::letter_texture;
 
 pub const N_GUESSES: usize = 6;
 

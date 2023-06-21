@@ -1,8 +1,8 @@
 use glow::HasContext;
 use std::rc::Rc;
 use std::cell::Cell;
-use crate::array_object::ArrayObject;
-use crate::buffer::Buffer;
+use super::array_object::ArrayObject;
+use super::buffer::Buffer;
 
 pub struct QuadTool {
     gl: Rc<glow::Context>,

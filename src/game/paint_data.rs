@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::Cell;
-use crate::{shaders, images, quad_tool};
+use super::{shaders, images, quad_tool};
 
 pub struct PaintData {
     pub gl: Rc<glow::Context>,

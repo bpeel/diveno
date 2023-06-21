@@ -4,7 +4,7 @@ use sdl2::image::LoadSurface;
 use sdl2::surface::Surface;
 use sdl2::pixels::PixelFormatEnum;
 use glow::HasContext;
-use crate::images::{Texture, ImageSet};
+use crate::game::images::{Texture, ImageSet};
 
 fn copy_image(
     dst: &mut Vec<u8>,

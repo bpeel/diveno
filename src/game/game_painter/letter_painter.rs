@@ -1,10 +1,10 @@
 use std::rc::Rc;
-use crate::paint_data::PaintData;
-use crate::logic;
-use crate::buffer::Buffer;
-use crate::letter_texture;
-use crate::shaders;
-use crate::array_object::ArrayObject;
+use super::super::paint_data::PaintData;
+use super::super::logic;
+use super::super::buffer::Buffer;
+use super::super::letter_texture;
+use super::super::shaders;
+use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Vector3, Perspective3};
 use std::f32::consts::PI;

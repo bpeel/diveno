@@ -1,13 +1,7 @@
-mod shaders;
-mod images;
+mod game;
 mod sdl_images;
-mod paint_data;
-mod game_painter;
-mod logic;
-mod buffer;
-mod letter_texture;
-mod array_object;
-mod quad_tool;
+
+use game::{logic, shaders, images, game_painter, paint_data};
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};

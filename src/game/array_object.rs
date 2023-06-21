@@ -1,7 +1,7 @@
 use std::rc::Rc;
-use crate::paint_data::PaintData;
+use super::paint_data::PaintData;
 use std::collections::HashMap;
-use crate::buffer::Buffer;
+use super::buffer::Buffer;
 use glow::HasContext;
 
 struct Attribute {

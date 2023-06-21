@@ -3,7 +3,7 @@ mod letter_painter;
 use std::rc::Rc;
 use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
-use crate::logic;
+use super::logic;
 use glow::HasContext;
 
 pub struct GamePainter {
