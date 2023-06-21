@@ -2,16 +2,16 @@ use std::rc::Rc;
 use glow::HasContext;
 
 pub struct Texture {
-    id: glow::NativeTexture,
+    id: glow::Texture,
     gl: Rc<glow::Context>,
 }
 
 impl Texture {
-    pub fn new(gl: Rc<glow::Context>, id: glow::NativeTexture) -> Texture {
+    pub fn new(gl: Rc<glow::Context>, id: glow::Texture) -> Texture {
         Texture { gl, id }
     }
 
-    pub fn id(&self) -> glow::NativeTexture {
+    pub fn id(&self) -> glow::Texture {
         self.id
     }
 }

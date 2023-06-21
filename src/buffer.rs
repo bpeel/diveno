@@ -3,7 +3,7 @@ use glow::HasContext;
 
 pub struct Buffer {
     gl: Rc<glow::Context>,
-    id: glow::NativeBuffer,
+    id: glow::Buffer,
 }
 
 impl Drop for Buffer {
@@ -23,7 +23,7 @@ impl Buffer {
         Ok(Buffer { id, gl })
     }
 
-    pub fn id(&self) -> glow::NativeBuffer {
+    pub fn id(&self) -> glow::Buffer {
         self.id
     }
 }

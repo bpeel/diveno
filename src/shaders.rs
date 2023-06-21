@@ -8,7 +8,7 @@ pub const COLOR_ATTRIB: u32 = 2;
 pub const NORMAL_ATTRIB: u32 = 3;
 
 pub struct Shader {
-    id: glow::NativeShader,
+    id: glow::Shader,
     gl: Rc<glow::Context>,
 }
 
@@ -63,7 +63,7 @@ impl Drop for Shader {
 }
 
 pub struct Program {
-    id: glow::NativeProgram,
+    id: glow::Program,
     gl: Rc<glow::Context>,
 }
 
@@ -97,7 +97,7 @@ impl Program {
         Ok(program)
     }
 
-    pub fn id(&self) -> glow::NativeProgram {
+    pub fn id(&self) -> glow::Program {
         self.id
     }
 

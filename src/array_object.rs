@@ -19,7 +19,7 @@ enum InternalArrayObject {
     },
     Native {
         buffers: HashMap<u32, Rc<Buffer>>,
-        vertex_array: glow::NativeVertexArray,
+        vertex_array: glow::VertexArray,
     },
 }
 

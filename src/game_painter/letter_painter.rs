@@ -35,7 +35,7 @@ pub struct LetterPainter {
     height: u32,
     transform_dirty: bool,
     vertices_dirty: bool,
-    mvp_uniform: glow::NativeUniformLocation,
+    mvp_uniform: glow::UniformLocation,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
