@@ -27,6 +27,7 @@ package = "web-sys"
 version = "0.3.64"
 features = [
          "HtmlCanvasElement",
+         "HtmlImageElement",
          "WebGlRenderingContext",
          "Window",
          "console",

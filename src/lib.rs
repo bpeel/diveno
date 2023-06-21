@@ -78,25 +78,13 @@ impl Context {
 pub struct Diveno {
     context: Option<Context>,
     shader_loader: Option<game::shaders::ShaderLoader>,
+    shaders: Option<game::shaders::Shaders>,
+    image_loader: Option<game::images::ImageLoader>,
+    images: Option<game::images::ImageSet>,
     logic: game::logic::Logic,
     game_painter: Option<game::game_painter::GamePainter>,
     width: u32,
     height: u32,
-}
-
-#[cfg(target_arch = "wasm32")]
-fn load_fake_image_set(
-    gl: Rc<glow::Context>,
-) -> Result<game::images::ImageSet, String> {
-    let letters = unsafe {
-        gl.create_texture()?
-    };
-
-    let mut image_loader = game::images::ImageLoader::new(gl);
-
-    image_loader.loaded(letters);
-
-    Ok(image_loader.complete())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -106,23 +94,30 @@ impl Diveno {
     pub fn new() -> Diveno {
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-        let (context, shader_loader) = match Context::new() {
+        let (context, shader_loader, image_loader) = match Context::new() {
             Ok(context) => {
                 let shader_loader = game::shaders::ShaderLoader::new(
                     Rc::clone(&context.gl),
                 );
 
-                (Some(context), Some(shader_loader))
+                let image_loader = game::images::ImageLoader::new(
+                    Rc::clone(&context.gl),
+                );
+
+                (Some(context), Some(shader_loader), Some(image_loader))
             },
             Err(e) => {
                 show_error(&e.to_string());
-                (None, None)
+                (None, None, None)
             },
         };
 
         Diveno {
             context,
             shader_loader,
+            shaders: None,
+            image_loader,
+            images: None,
             logic: game::logic::Logic::new(),
             game_painter: None,
             width: 1,
@@ -153,7 +148,8 @@ impl Diveno {
         if shader_loader.next_filename().is_none() {
             match self.shader_loader.take().unwrap().complete() {
                 Ok(shaders) => {
-                    self.start_game(shaders)
+                    self.shaders = Some(shaders);
+                    self.maybe_start_game();
                 },
                 Err(e) => {
                     show_error(&e);
@@ -162,19 +158,97 @@ impl Diveno {
         }
     }
 
-    fn start_game(&mut self, shaders: game::shaders::Shaders) {
+    pub fn next_image_filename(&self) -> Option<String> {
+        let Some(image_loader) = self.image_loader.as_ref()
+        else {
+            return None;
+        };
+
+        image_loader.next_filename().map(str::to_string)
+    }
+
+    pub fn image_loaded(&mut self, image: web_sys::HtmlImageElement) {
+        let Some(image_loader) = self.image_loader.as_mut()
+        else {
+            return;
+        };
+
+        let Some(ref context) = self.context
+        else {
+            return;
+        };
+
+        let gl = &context.gl;
+
+        let texture = unsafe {
+            match gl.create_texture() {
+                Ok(t) => t,
+                Err(e) => {
+                    show_error(&e);
+                    return;
+                }
+            }
+        };
+
+        unsafe {
+            gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_S,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_WRAP_T,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                glow::LINEAR_MIPMAP_NEAREST as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                glow::LINEAR as i32,
+            );
+            gl.tex_image_2d_with_html_image(
+                glow::TEXTURE_2D,
+                0, // level
+                glow::RGBA as i32,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                &image,
+            );
+            gl.generate_mipmap(glow::TEXTURE_2D);
+        }
+
+        image_loader.loaded(texture);
+
+        if image_loader.next_filename().is_none() {
+            self.images = Some(self.image_loader.take().unwrap().complete());
+            self.maybe_start_game();
+        }
+    }
+
+    fn maybe_start_game(&mut self) {
+        if self.shaders.is_some() && self.images.is_some() {
+            let shaders = self.shaders.take().unwrap();
+            let images = self.images.take().unwrap();
+
+            self.start_game(shaders, images);
+        }
+    }
+
+    fn start_game(
+        &mut self,
+        shaders: game::shaders::Shaders,
+        images: game::images::ImageSet,
+    ) {
         let gl = if let Some(ref context) = self.context {
             &context.gl
         } else {
             return;
-        };
-
-        let images = match load_fake_image_set(Rc::clone(gl)) {
-            Ok(s) => s,
-            Err(e) => {
-                show_error(&e);
-                return;
-            },
         };
 
         let paint_data = Rc::new(game::paint_data::PaintData::new(
@@ -230,5 +304,9 @@ impl Diveno {
         }
 
         redraw_queued
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.game_painter.is_some()
     }
 }
