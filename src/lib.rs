@@ -57,7 +57,10 @@ impl Context {
             return Err("failed to get canvas element".to_string());
         };
 
-        let Some(context) = canvas.get_context("webgl")
+        let Some(context) = canvas.get_context_with_context_options(
+            "webgl",
+            web_sys::WebGlContextAttributes::new().alpha(false),
+        )
             .unwrap_or(None)
             .and_then(|c| c.dyn_into::<web_sys::WebGlRenderingContext>().ok())
         else {

@@ -29,6 +29,7 @@ features = [
          "HtmlCanvasElement",
          "HtmlImageElement",
          "WebGlRenderingContext",
+         "WebGlContextAttributes",
          "Window",
          "console",
 ]
