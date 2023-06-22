@@ -270,9 +270,12 @@ impl Diveno {
             return;
         };
 
+        let has_vertex_array_object =
+            gl.supported_extensions().contains("OES_vertex_array_object");
+
         let paint_data = Rc::new(game::paint_data::PaintData::new(
             Rc::clone(gl),
-            false, // has_vertex_array_object
+            has_vertex_array_object,
             shaders,
             images,
         ));
