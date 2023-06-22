@@ -3,6 +3,8 @@ name = "diveno"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
+description = "A word game in Esperanto"
+repository = "https://github.com/bpeel/diveno"
 
 [lib]
 crate-type = ["cdylib"]
