@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use super::letter_texture;
+use super::dictionary::Dictionary;
 
 pub const N_GUESSES: usize = 6;
 
@@ -61,6 +62,7 @@ static HATABLE_LETTERS: [(char, char); 12] = [
 ];
 
 pub struct Logic {
+    dictionary: Dictionary,
     word: String,
     word_length: usize,
     in_progress_guess: String,
@@ -78,8 +80,9 @@ pub struct Logic {
 }
 
 impl Logic {
-    pub fn new() -> Logic {
+    pub fn new(dictionary: Dictionary) -> Logic {
         let mut logic = Logic {
+            dictionary,
             word: String::new(),
             word_length: 0,
             in_progress_guess: String::new(),
@@ -244,6 +247,10 @@ impl Logic {
         );
 
         if guess.len() != self.word_length {
+            return;
+        }
+
+        if !self.dictionary.contains(&self.in_progress_guess) {
             return;
         }
 

@@ -18,6 +18,7 @@ mod game;
 mod sdl_images;
 
 use game::{logic, shaders, images, game_painter, paint_data};
+use game::dictionary::Dictionary;
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
@@ -116,9 +117,11 @@ impl<'a> GameData<'a> {
 
         let game_painter = game_painter::GamePainter::new(paint_data)?;
 
+        let dictionary = load_dictionary()?;
+
         Ok(GameData {
             context,
-            logic: logic::Logic::new(),
+            logic: logic::Logic::new(dictionary),
             game_painter,
             redraw_queued: true,
             should_quit: false,
@@ -210,16 +213,22 @@ fn main_loop(game_data: &mut GameData) {
     }
 }
 
+fn load_data_file(filename: &str) -> Result<Vec<u8>, String> {
+    let path: std::path::PathBuf = ["data", filename].iter().collect();
+
+    std::fs::read(&path).map_err(|e| format!("{}: {}", filename, e))
+}
+
+fn load_dictionary() -> Result<Dictionary, String> {
+    load_data_file("dictionary.bin")
+        .map(|d| Dictionary::new(d.into_boxed_slice()))
+}
+
 fn load_shaders(gl: Rc<glow::Context>) -> Result<shaders::Shaders, String> {
     let mut loader = shaders::ShaderLoader::new(gl);
 
     while let Some(filename) = loader.next_filename() {
-        let path: std::path::PathBuf = ["data", filename].iter().collect();
-
-        match std::fs::read(&path) {
-            Err(e) => return Err(format!("{}: {}", filename, e)),
-            Ok(s) => loader.loaded(&s)?,
-        }
+        loader.loaded(&load_data_file(filename)?)?;
     }
 
     loader.complete()

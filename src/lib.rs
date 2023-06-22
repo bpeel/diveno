@@ -100,7 +100,7 @@ pub struct Diveno {
     shaders: Option<game::shaders::Shaders>,
     image_loader: Option<game::images::ImageLoader>,
     images: Option<game::images::ImageSet>,
-    logic: game::logic::Logic,
+    logic: Option<game::logic::Logic>,
     game_painter: Option<game::game_painter::GamePainter>,
     width: u32,
     height: u32,
@@ -137,7 +137,7 @@ impl Diveno {
             shaders: None,
             image_loader,
             images: None,
-            logic: game::logic::Logic::new(),
+            logic: None,
             game_painter: None,
             width: 1,
             height: 1,
@@ -145,34 +145,42 @@ impl Diveno {
     }
 
     pub fn next_data_filename(&self) -> Option<String> {
-        let Some(shader_loader) = self.shader_loader.as_ref()
-        else {
-            return None;
-        };
-
-        shader_loader.next_filename().map(str::to_string)
+        self.shader_loader
+            .as_ref()
+            .and_then(|s| s.next_filename().map(str::to_string))
+            .or_else(|| {
+                if self.logic.is_some() {
+                    None
+                } else {
+                    Some("dictionary.bin".to_string())
+                }
+            })
     }
 
     pub fn data_loaded(&mut self, contents: &[u8]) {
-        let Some(shader_loader) = self.shader_loader.as_mut()
-        else {
-            return;
-        };
-
-        if let Err(e) = shader_loader.loaded(contents) {
-            show_error(&e);
-            return;
-        }
-
-        if shader_loader.next_filename().is_none() {
-            match self.shader_loader.take().unwrap().complete() {
-                Ok(shaders) => {
-                    self.shaders = Some(shaders);
-                    self.maybe_start_game();
-                },
-                Err(e) => {
+        match self.shader_loader.as_mut() {
+            Some(shader_loader) => {
+                if let Err(e) = shader_loader.loaded(contents) {
                     show_error(&e);
-                },
+                    return;
+                }
+
+                if shader_loader.next_filename().is_none() {
+                    match self.shader_loader.take().unwrap().complete() {
+                        Ok(shaders) => self.shaders = Some(shaders),
+                        Err(e) => show_error(&e),
+                    }
+                }
+            },
+            None => {
+                if self.logic.is_none() {
+                    self.logic = Some(game::logic::Logic::new(
+                        game::dictionary::Dictionary::new(
+                            Box::from(contents)
+                        )
+                    ));
+                    self.maybe_start_game();
+                }
             }
         }
     }
@@ -251,7 +259,10 @@ impl Diveno {
     }
 
     fn maybe_start_game(&mut self) {
-        if self.shaders.is_some() && self.images.is_some() {
+        if self.shaders.is_some()
+            && self.images.is_some()
+            && self.logic.is_some()
+        {
             let shaders = self.shaders.take().unwrap();
             let images = self.images.take().unwrap();
 
@@ -301,7 +312,10 @@ impl Diveno {
     fn flush_logic_events(&mut self) -> bool {
         let mut redraw_queued = false;
 
-        while let Some(event) = self.logic.get_event() {
+        while let Some(event) = self.logic
+            .as_mut()
+            .and_then(|l| l.get_event())
+        {
             match event {
                 game::logic::Event::GuessEntered |
                 game::logic::Event::WordChanged |
@@ -322,7 +336,9 @@ impl Diveno {
         let mut redraw_queued = self.flush_logic_events();
 
         if let Some(ref mut game_painter) = self.game_painter {
-            redraw_queued |= game_painter.paint(&self.logic);
+            if let Some(ref logic) = self.logic {
+                redraw_queued |= game_painter.paint(logic);
+            }
         }
 
         redraw_queued
@@ -332,23 +348,28 @@ impl Diveno {
         self.game_painter.is_some()
     }
 
+    fn press_key(&mut self, key: game::logic::Key) -> bool {
+        if let Some(ref mut logic) = self.logic {
+            logic.press_key(key);
+            self.flush_logic_events()
+        } else {
+            false
+        }
+    }
+
     pub fn press_enter(&mut self) -> bool {
-        self.logic.press_key(game::logic::Key::Enter);
-        self.flush_logic_events()
+        self.press_key(game::logic::Key::Enter)
     }
 
     pub fn press_backspace(&mut self) -> bool {
-        self.logic.press_key(game::logic::Key::Backspace);
-        self.flush_logic_events()
+        self.press_key(game::logic::Key::Backspace)
     }
 
     pub fn press_dead_key(&mut self) -> bool {
-        self.logic.press_key(game::logic::Key::Dead);
-        self.flush_logic_events()
+        self.press_key(game::logic::Key::Dead)
     }
 
     pub fn press_letter_key(&mut self, letter: char) -> bool {
-        self.logic.press_key(game::logic::Key::Letter(letter));
-        self.flush_logic_events()
+        self.press_key(game::logic::Key::Letter(letter))
     }
 }
