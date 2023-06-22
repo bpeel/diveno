@@ -7,3 +7,4 @@ pub mod buffer;
 pub mod letter_texture;
 pub mod array_object;
 pub mod quad_tool;
+pub mod timer;

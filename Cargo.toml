@@ -32,6 +32,7 @@ features = [
          "WebGlRenderingContext",
          "WebGlContextAttributes",
          "Window",
+         "Performance",
          "console",
 ]
 

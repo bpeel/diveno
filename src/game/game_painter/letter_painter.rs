@@ -1,14 +1,11 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
-use super::super::logic;
 use super::super::buffer::Buffer;
-use super::super::letter_texture;
-use super::super::shaders;
+use super::super::{shaders, logic, timer, letter_texture};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Vector3, Perspective3};
 use std::f32::consts::PI;
-use std::time::Instant;
 
 // Number of seconds per letter for the animation
 const SECONDS_PER_LETTER: f32 = 0.3;
@@ -40,7 +37,7 @@ pub struct LetterPainter {
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
     most_quads: u32,
-    animation_start_time: Option<Instant>,
+    animation_start_time: Option<timer::Timer>,
 }
 
 impl LetterPainter {
@@ -77,7 +74,7 @@ impl LetterPainter {
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
         let animation_time = self.animation_start_time.and_then(|start_time| {
-            let secs = start_time.elapsed().as_millis() as f32 / 1000.0;
+            let secs = start_time.elapsed();
 
             let total_time = (logic.word_length() as f32 - 1.0)
                 * SECONDS_PER_LETTER
@@ -148,7 +145,7 @@ impl LetterPainter {
             },
             logic::Event::GridChanged => self.vertices_dirty = true,
             logic::Event::GuessEntered => {
-                self.animation_start_time = Some(Instant::now());
+                self.animation_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
             },
         }
