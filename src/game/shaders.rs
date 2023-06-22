@@ -214,8 +214,13 @@ impl ShaderLoader {
         }
     }
 
-    pub fn loaded(&mut self, source: &str) -> Result<(), String> {
+    pub fn loaded(&mut self, source: &[u8]) -> Result<(), String> {
         assert!(self.n_shaders < N_SHADER_FILES);
+
+        let Ok(source) = std::str::from_utf8(source)
+        else {
+            return Err("Invalid UTF-8 in shader source".to_string())
+        };
 
         self.shaders[self.n_shaders] = Some(Shader::new(
             Rc::clone(&self.gl),

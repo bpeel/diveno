@@ -81,10 +81,10 @@ function queue_data_download(diveno) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        return response.text();
+        return response.arrayBuffer();
       })
       .then(response => {
-        diveno.data_loaded(response);
+        diveno.data_loaded(new Uint8Array(response));
         queue_data_download(diveno);
       })
       .catch(error => {

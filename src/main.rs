@@ -216,7 +216,7 @@ fn load_shaders(gl: Rc<glow::Context>) -> Result<shaders::Shaders, String> {
     while let Some(filename) = loader.next_filename() {
         let path: std::path::PathBuf = ["data", filename].iter().collect();
 
-        match std::fs::read_to_string(&path) {
+        match std::fs::read(&path) {
             Err(e) => return Err(format!("{}: {}", filename, e)),
             Ok(s) => loader.loaded(&s)?,
         }

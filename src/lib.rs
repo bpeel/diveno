@@ -153,13 +153,13 @@ impl Diveno {
         shader_loader.next_filename().map(str::to_string)
     }
 
-    pub fn data_loaded(&mut self, source: &str) {
+    pub fn data_loaded(&mut self, contents: &[u8]) {
         let Some(shader_loader) = self.shader_loader.as_mut()
         else {
             return;
         };
 
-        if let Err(e) = shader_loader.loaded(source) {
+        if let Err(e) = shader_loader.loaded(contents) {
             show_error(&e);
             return;
         }
