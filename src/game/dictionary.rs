@@ -38,7 +38,7 @@ impl Dictionary {
         }
 
         let mut data = &remainder[child_offset..];
-        let mut word = word.chars();
+        let mut word = word.chars().flat_map(|c| c.to_lowercase());
         let mut next_letter = word.next();
 
         loop {
@@ -176,5 +176,8 @@ mod test {
         assert!(!dictionary.contains("appl"));
         assert!(!dictionary.contains("apples"));
         assert!(!dictionary.contains("eĥo"));
+
+        assert!(dictionary.contains("APPLE"));
+        assert!(dictionary.contains("ĈAPelo"));
     }
 }
