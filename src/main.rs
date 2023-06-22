@@ -81,7 +81,6 @@ struct GameData<'a> {
     context: &'a mut Context,
     logic: logic::Logic,
     game_painter: game_painter::GamePainter,
-    in_progress_guess: String,
     redraw_queued: bool,
     should_quit: bool,
 }
@@ -105,7 +104,6 @@ impl<'a> GameData<'a> {
             context,
             logic: logic::Logic::new(),
             game_painter,
-            in_progress_guess: String::new(),
             redraw_queued: true,
             should_quit: false,
         })
@@ -115,18 +113,12 @@ impl<'a> GameData<'a> {
 fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
     match code {
         Keycode::Escape => game_data.should_quit = true,
-        Keycode::Backspace => {
-            game_data.in_progress_guess.pop();
-            game_data.logic.set_in_progress_guess(&game_data.in_progress_guess);
-        },
-        Keycode::Return => game_data.logic.enter_guess(),
+        Keycode::Backspace => game_data.logic.press_key(logic::Key::Backspace),
+        Keycode::Return => game_data.logic.press_key(logic::Key::Enter),
         code => {
             if let Some(ch) = char::from_u32(code as u32) {
                 if ch.is_alphabetic() {
-                    game_data.in_progress_guess.push(ch);
-                    game_data.logic.set_in_progress_guess(
-                        &game_data.in_progress_guess
-                    );
+                    game_data.logic.press_key(logic::Key::Letter(ch));
                 }
             }
         }
@@ -165,10 +157,7 @@ fn handle_event(game_data: &mut GameData, event: Event) {
 fn flush_logic_events(game_data: &mut GameData) {
     while let Some(event) = game_data.logic.get_event() {
         match event {
-            logic::Event::GuessEntered => {
-                game_data.in_progress_guess.clear();
-                game_data.redraw_queued = true;
-            },
+            logic::Event::GuessEntered |
             logic::Event::WordChanged |
             logic::Event::GridChanged => {
                 game_data.redraw_queued = true;

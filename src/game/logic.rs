@@ -16,10 +16,33 @@ pub enum LetterResult {
     Wrong,
 }
 
+#[derive(Copy, Clone)]
+pub enum Key {
+    Dead,
+    Backspace,
+    Enter,
+    Letter(char),
+}
+
 pub struct Letter {
     pub letter: char,
     pub result: LetterResult,
 }
+
+static HATABLE_LETTERS: [(char, char); 12] = [
+    ('C', 'Ĉ'),
+    ('G', 'Ĝ'),
+    ('H', 'Ĥ'),
+    ('J', 'Ĵ'),
+    ('S', 'Ŝ'),
+    ('U', 'Ŭ'),
+    ('c', 'ĉ'),
+    ('g', 'ĝ'),
+    ('h', 'ĥ'),
+    ('j', 'ĵ'),
+    ('s', 'ŝ'),
+    ('u', 'ŭ'),
+];
 
 pub struct Logic {
     word: String,
@@ -35,6 +58,7 @@ pub struct Logic {
     // either because it was given as a hint or because they guessed
     // the right letter position.
     visible_letters: u32,
+    dead_key_queued: bool,
 }
 
 impl Logic {
@@ -50,6 +74,7 @@ impl Logic {
             guess_entered_queued: false,
             letter_counter: LetterCounter::new(),
             visible_letters: 1,
+            dead_key_queued: false,
         };
 
         logic.set_word("POTATO");
@@ -66,6 +91,7 @@ impl Logic {
         self.grid_changed_queued = true;
         self.n_guesses = 0;
         self.visible_letters = 1;
+        self.dead_key_queued = false;
     }
 
     pub fn word(&self) -> &str {
@@ -76,32 +102,83 @@ impl Logic {
         self.word_length
     }
 
-    pub fn set_in_progress_guess(&mut self, guess: &str) {
-        let first_letter = self.word.chars().next().unwrap();
-
-        self.in_progress_guess.clear();
-
-        let mut added = 0;
-
-        'add_loop: for ch in xsystem::unicode_chars(guess.chars()) {
-            for ch in ch.to_uppercase() {
-                if is_valid_letter(ch) {
-                    if added == 0 && ch != first_letter {
-                        self.in_progress_guess.push(first_letter);
-                        added += 1;
+    pub fn press_key(&mut self, key: Key) {
+        match key {
+            Key::Letter(mut letter) => {
+                if letter == 'x' || letter == 'X' {
+                    self.hatify_last_letter();
+                } else {
+                    if self.dead_key_queued {
+                        letter = hatify(letter).unwrap_or(letter);
+                        self.dead_key_queued = false;
                     }
 
-                    self.in_progress_guess.push(ch);
-                    added += 1;
-
-                    if added >= self.word_length {
-                        break 'add_loop;
-                    }
+                    self.add_letter(letter);
                 }
-            }
+            },
+            Key::Dead => self.dead_key_queued = true,
+            Key::Enter => {
+                self.dead_key_queued = false;
+                self.enter_guess();
+            },
+            Key::Backspace => {
+                self.dead_key_queued = false;
+                self.remove_letter();
+            },
+        }
+    }
+
+    fn hatify_last_letter(&mut self) {
+        let mut last_letters = self.in_progress_guess.chars().rev();
+
+        let Some(letter) = last_letters.next()
+        else {
+            return;
+        };
+
+        // Don’t hatify the first letter
+        if last_letters.next().is_none() {
+            return;
         }
 
-        self.grid_changed_queued = true;
+        if let Some(hatted) = hatify(letter) {
+            self.in_progress_guess.truncate(
+                self.in_progress_guess.len() - letter.len_utf8()
+            );
+            self.in_progress_guess.push(hatted);
+            self.grid_changed_queued = true;
+        }
+    }
+
+    fn remove_letter(&mut self) {
+        if let Some(letter) = self.in_progress_guess.chars().rev().next() {
+            self.in_progress_guess.truncate(
+                self.in_progress_guess.len() - letter.len_utf8()
+            );
+            self.grid_changed_queued = true;
+        }
+    }
+
+    fn add_letter(&mut self, letter: char) {
+        let mut guess_length = self.in_progress_guess.chars().count();
+        let first_letter = self.word.chars().next().unwrap();
+
+        for ch in letter.to_uppercase() {
+            if guess_length >= self.word_length {
+                break;
+            }
+
+            if is_valid_letter(ch) {
+                if guess_length == 0 && ch != first_letter {
+                    self.in_progress_guess.push(first_letter);
+                    guess_length += 1;
+                }
+
+                self.in_progress_guess.push(ch);
+                guess_length += 1;
+                self.grid_changed_queued = true;
+            }
+        }
     }
 
     pub fn in_progress_guess(&self) -> &str {
@@ -123,7 +200,7 @@ impl Logic {
         }
     }
 
-    pub fn enter_guess(&mut self) {
+    fn enter_guess(&mut self) {
         if self.n_guesses >= N_GUESSES {
             return;
         }
@@ -169,7 +246,7 @@ impl Logic {
             }
         }
 
-        self.set_in_progress_guess("");
+        self.in_progress_guess.clear();
 
         self.n_guesses += 1;
         self.grid_changed_queued = true;
@@ -213,6 +290,13 @@ fn is_valid_letter(letter: char) -> bool {
     let letters = &letter_texture::COLORS[0].letters;
 
     letters.binary_search_by(|probe| probe.ch.cmp(&letter)).is_ok()
+}
+
+fn hatify(letter: char) -> Option<char> {
+    match HATABLE_LETTERS.binary_search_by(|probe| probe.0.cmp(&letter)) {
+        Ok(index) => Some(HATABLE_LETTERS[index].1),
+        Err(_) => None,
+    }
 }
 
 struct LetterCounter {

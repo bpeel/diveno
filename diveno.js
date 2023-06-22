@@ -35,17 +35,22 @@ function start_game(diveno) {
 
   observer.observe(canvas);
 
-  let input = document.getElementById("input");
-  input.style.display = "block";
-  input.focus({ preventScroll: true });
+  window.addEventListener("keydown", (event) => {
+    let needRedraw = false;
 
-  input.addEventListener("input", (event) => {
-    if (diveno.set_in_progress_guess(input.value))
-      queueRedraw();
-  });
-
-  input.addEventListener("keydown", (event) => {
-    if (event.key == "Enter" && diveno.enter_guess())
+    if (event.key == "Enter")
+      needRedraw = diveno.press_enter();
+    else if (event.key == "Backspace")
+      needRedraw = diveno.press_backspace();
+    else if (event.key == "Dead")
+      needRedraw = diveno.press_dead_key();
+    else if (event.key.length == 1) {
+      let code = event.key.charCodeAt(0);
+      if (code >= 65) {
+        needRedraw = diveno.press_letter_key(event.key);
+      }
+    }
+    if (needRedraw)
       queueRedraw();
   });
 }
