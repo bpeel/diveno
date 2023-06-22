@@ -96,7 +96,7 @@ impl Logic {
             dead_key_queued: false,
         };
 
-        logic.set_word("POTATO");
+        logic.set_word("TERPOMO");
 
         logic
     }
