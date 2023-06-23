@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+const BITS_PER_CHOICE: u32 = 5;
+
 pub struct Dictionary {
     data: Box<[u8]>,
 }
@@ -72,6 +74,63 @@ impl Dictionary {
                     None => return false,
                 };
             }
+        }
+    }
+
+    pub fn extract_word(&self, mut word: u64) -> Option<String> {
+        // Skip the root node
+        let Some(Node { remainder, child_offset, .. }) =
+            Node::extract(&self.data)
+        else {
+            return None;
+        };
+
+        if child_offset == 0 {
+            return None;
+        }
+
+        let mut data = &remainder[child_offset..];
+        let mut buf = String::new();
+
+        loop {
+            let to_skip = word & ((1 << BITS_PER_CHOICE) - 1);
+            word >>= BITS_PER_CHOICE;
+
+            for _ in 0..to_skip {
+                let Some(node) = Node::extract(data)
+                else {
+                    return None;
+                };
+
+                if node.sibling_offset == 0 {
+                    return None;
+                }
+
+                data = match node.remainder.get(node.sibling_offset..) {
+                    Some(d) => d,
+                    None => return None,
+                };
+            }
+
+            let Some(node) = Node::extract(data)
+            else {
+                return None;
+            };
+
+            if node.letter == '\0' {
+                return Some(buf);
+            }
+
+            buf.push(node.letter);
+
+            if node.child_offset == 0 {
+                return None;
+            }
+
+            data = match node.remainder.get(node.child_offset..) {
+                Some(d) => d,
+                None => return None,
+            };
         }
     }
 }
