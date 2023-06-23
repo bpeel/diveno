@@ -77,9 +77,9 @@ impl<'a> Node<'a> {
     }
 }
 
-fn compress_word(dictionary: &[u8], word: &str) -> Result<u32, CompressError> {
+fn compress_word(dictionary: &[u8], word: &str) -> Result<u64, CompressError> {
     let mut n_choices = 0;
-    let mut choices = 0u32;
+    let mut choices = 0u64;
 
     // Skip the root node
     let Some(Node { remainder, child_offset, .. }) =
@@ -104,7 +104,7 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u32, CompressError> {
 
         if node.letter == next_letter.unwrap_or('\0') {
             if next_letter.is_none() {
-                if n_choices >= u32::BITS {
+                if n_choices >= u64::BITS {
                     return Err(CompressError::TooManyBits);
                 } else {
                     return Ok(choices | (1 << n_choices));
@@ -117,7 +117,7 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u32, CompressError> {
 
             next_letter = word.next();
 
-            if n_choices >= u32::BITS {
+            if n_choices >= u64::BITS {
                 return Err(CompressError::TooManyBits);
             } else {
                 choices |= 1 << n_choices;
@@ -133,7 +133,7 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u32, CompressError> {
                 return Err(CompressError::NotInDictionary);
             }
 
-            if n_choices >= u32::BITS {
+            if n_choices >= u64::BITS {
                 return Err(CompressError::TooManyBits);
             } else {
                 n_choices += 1;
@@ -147,7 +147,7 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u32, CompressError> {
     }
 }
 
-fn write_words(words: &[u32], output_filename: &OsStr) -> io::Result<()> {
+fn write_words(words: &[u64], output_filename: &OsStr) -> io::Result<()> {
     let output = std::fs::File::create(output_filename)?;
     let mut output = io::BufWriter::new(output);
 
@@ -176,7 +176,7 @@ fn main() -> ExitCode {
         },
     };
 
-    let mut words = Vec::<u32>::new();
+    let mut words = Vec::<u64>::new();
     let mut ret = ExitCode::SUCCESS;
 
     for line in io::stdin().lines() {
