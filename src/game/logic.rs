@@ -81,7 +81,7 @@ pub struct Logic {
 }
 
 impl Logic {
-    pub fn new(dictionary: Dictionary) -> Logic {
+    fn new(dictionary: Dictionary) -> Logic {
         let mut logic = Logic {
             dictionary,
             word: String::new(),
@@ -362,5 +362,37 @@ impl LetterCounter {
         } else {
             false
         }
+    }
+}
+
+pub struct LogicLoader {
+    dictionary: Option<Dictionary>,
+}
+
+impl LogicLoader {
+    pub fn new() -> LogicLoader {
+        LogicLoader {
+            dictionary: None,
+        }
+    }
+
+    pub fn next_filename(&self) -> Option<&'static str> {
+        if self.dictionary.is_none() {
+            Some("dictionary.bin")
+        } else {
+            None
+        }
+    }
+
+    pub fn loaded(&mut self, source: Box<[u8]>) {
+        if self.dictionary.is_none() {
+            self.dictionary = Some(Dictionary::new(source));
+        } else {
+            unreachable!("too many data files loaded!");
+        }
+    }
+
+    pub fn complete(self) -> Logic {
+        Logic::new(self.dictionary.unwrap())
     }
 }

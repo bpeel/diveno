@@ -97,6 +97,7 @@ impl Context {
 pub struct Diveno {
     context: Option<Context>,
     shader_loader: Option<game::shaders::ShaderLoader>,
+    logic_loader: Option<game::logic::LogicLoader>,
     shaders: Option<game::shaders::Shaders>,
     image_loader: Option<game::images::ImageLoader>,
     images: Option<game::images::ImageSet>,
@@ -134,6 +135,7 @@ impl Diveno {
         Diveno {
             context,
             shader_loader,
+            logic_loader: Some(game::logic::LogicLoader::new()),
             shaders: None,
             image_loader,
             images: None,
@@ -149,11 +151,9 @@ impl Diveno {
             .as_ref()
             .and_then(|s| s.next_filename().map(str::to_string))
             .or_else(|| {
-                if self.logic.is_some() {
-                    None
-                } else {
-                    Some("dictionary.bin".to_string())
-                }
+                self.logic_loader
+                    .as_ref()
+                    .and_then(|s| s.next_filename().map(str::to_string))
             })
     }
 
@@ -172,16 +172,19 @@ impl Diveno {
                     }
                 }
             },
-            None => {
-                if self.logic.is_none() {
-                    self.logic = Some(game::logic::Logic::new(
-                        game::dictionary::Dictionary::new(
-                            Box::from(contents)
-                        )
-                    ));
+            None => if let Some(logic_loader) = self.logic_loader.as_mut() {
+                logic_loader.loaded(Box::from(contents));
+
+                if logic_loader.next_filename().is_none() {
+                    self.logic = Some(
+                        self.logic_loader
+                            .take()
+                            .unwrap()
+                            .complete()
+                    );
                     self.maybe_start_game();
                 }
-            }
+            },
         }
     }
 

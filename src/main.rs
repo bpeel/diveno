@@ -18,7 +18,6 @@ mod game;
 mod sdl_images;
 
 use game::{logic, shaders, images, game_painter, paint_data};
-use game::dictionary::Dictionary;
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
@@ -117,11 +116,11 @@ impl<'a> GameData<'a> {
 
         let game_painter = game_painter::GamePainter::new(paint_data)?;
 
-        let dictionary = load_dictionary()?;
+        let logic = load_logic()?;
 
         Ok(GameData {
             context,
-            logic: logic::Logic::new(dictionary),
+            logic,
             game_painter,
             redraw_queued: true,
             should_quit: false,
@@ -220,9 +219,14 @@ fn load_data_file(filename: &str) -> Result<Vec<u8>, String> {
     std::fs::read(&path).map_err(|e| format!("{}: {}", filename, e))
 }
 
-fn load_dictionary() -> Result<Dictionary, String> {
-    load_data_file("dictionary.bin")
-        .map(|d| Dictionary::new(d.into_boxed_slice()))
+fn load_logic() -> Result<logic::Logic, String> {
+    let mut loader = logic::LogicLoader::new();
+
+    while let Some(filename) = loader.next_filename() {
+        loader.loaded(load_data_file(filename)?.into_boxed_slice());
+    }
+
+    Ok(loader.complete())
 }
 
 fn load_shaders(gl: Rc<glow::Context>) -> Result<shaders::Shaders, String> {
