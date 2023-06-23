@@ -15,11 +15,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use super::letter_texture;
 use super::dictionary::Dictionary;
 
 pub const N_GUESSES: usize = 6;
 
+#[derive(PartialEq, Eq)]
 pub enum Event {
     WordChanged,
     GridChanged,
@@ -68,9 +70,7 @@ pub struct Logic {
     in_progress_guess: String,
     guesses: [Vec<Letter>; N_GUESSES],
     n_guesses: usize,
-    word_changed_queued: bool,
-    grid_changed_queued: bool,
-    guess_entered_queued: bool,
+    event_queue: VecDeque<Event>,
     letter_counter: LetterCounter,
     // Bitmask of letters from the word that the player can see,
     // either because it was given as a hint or because they guessed
@@ -88,9 +88,7 @@ impl Logic {
             in_progress_guess: String::new(),
             guesses: Default::default(),
             n_guesses: 0,
-            word_changed_queued: false,
-            grid_changed_queued: false,
-            guess_entered_queued: false,
+            event_queue: VecDeque::new(),
             letter_counter: LetterCounter::new(),
             visible_letters: 1,
             dead_key_queued: false,
@@ -106,8 +104,8 @@ impl Logic {
         self.word.push_str(word);
         self.word_length = word.chars().count();
         self.in_progress_guess.clear();
-        self.word_changed_queued = true;
-        self.grid_changed_queued = true;
+        self.queue_event_once(Event::WordChanged);
+        self.queue_event_once(Event::GridChanged);
         self.n_guesses = 0;
         self.visible_letters = 1;
         self.dead_key_queued = false;
@@ -165,7 +163,7 @@ impl Logic {
                 self.in_progress_guess.len() - letter.len_utf8()
             );
             self.in_progress_guess.push(hatted);
-            self.grid_changed_queued = true;
+            self.queue_event_once(Event::GridChanged);
         }
     }
 
@@ -174,7 +172,7 @@ impl Logic {
             self.in_progress_guess.truncate(
                 self.in_progress_guess.len() - letter.len_utf8()
             );
-            self.grid_changed_queued = true;
+            self.queue_event_once(Event::GridChanged);
         }
     }
 
@@ -195,7 +193,7 @@ impl Logic {
 
                 self.in_progress_guess.push(ch);
                 guess_length += 1;
-                self.grid_changed_queued = true;
+                self.queue_event_once(Event::GridChanged);
             }
         }
     }
@@ -205,17 +203,12 @@ impl Logic {
     }
 
     pub fn get_event(&mut self) -> Option<Event> {
-        if self.guess_entered_queued {
-            self.guess_entered_queued = false;
-            Some(Event::GuessEntered)
-        } else if self.word_changed_queued {
-            self.word_changed_queued = false;
-            Some(Event::WordChanged)
-        } else if self.grid_changed_queued {
-            self.grid_changed_queued = false;
-            Some(Event::GridChanged)
-        } else {
-            None
+        self.event_queue.pop_front()
+    }
+
+    fn queue_event_once(&mut self, event: Event) {
+        if !self.event_queue.contains(&event) {
+            self.event_queue.push_back(event);
         }
     }
 
@@ -272,8 +265,8 @@ impl Logic {
         self.in_progress_guess.clear();
 
         self.n_guesses += 1;
-        self.grid_changed_queued = true;
-        self.guess_entered_queued = true;
+        self.queue_event_once(Event::GridChanged);
+        self.queue_event_once(Event::GuessEntered);
     }
 
     pub fn visible_letters(&self) -> u32 {
