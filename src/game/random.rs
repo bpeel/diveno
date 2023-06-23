@@ -14,15 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod shaders;
-pub mod images;
-pub mod paint_data;
-pub mod game_painter;
-pub mod logic;
-pub mod buffer;
-pub mod letter_texture;
-pub mod array_object;
-pub mod quad_tool;
-pub mod timer;
-pub mod dictionary;
-pub mod random;
+#[cfg(not(target_arch = "wasm32"))]
+use rand::Rng;
+
+pub fn random_range(max: usize) -> usize {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut rng = rand::thread_rng();
+        rng.gen_range(0..max)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        (js_sys::Math::random() * max as f64).floor() as usize
+    }
+}
