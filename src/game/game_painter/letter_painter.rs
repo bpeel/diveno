@@ -164,6 +164,7 @@ impl LetterPainter {
                 self.animation_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
             },
+            logic::Event::WrongGuessEntered => (),
         }
     }
 

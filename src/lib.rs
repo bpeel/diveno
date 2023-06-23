@@ -318,6 +318,7 @@ impl Diveno {
         {
             match event {
                 game::logic::Event::GuessEntered |
+                game::logic::Event::WrongGuessEntered |
                 game::logic::Event::WordChanged |
                 game::logic::Event::GridChanged => {
                     redraw_queued = true;

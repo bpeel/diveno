@@ -26,6 +26,7 @@ pub enum Event {
     WordChanged,
     GridChanged,
     GuessEntered,
+    WrongGuessEntered,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -239,11 +240,10 @@ impl Logic {
                 })
         );
 
-        if guess.len() != self.word_length {
-            return;
-        }
-
-        if !self.dictionary.contains(&self.in_progress_guess) {
+        if guess.len() != self.word_length
+            || !self.dictionary.contains(&self.in_progress_guess)
+        {
+            self.queue_event_once(Event::WrongGuessEntered);
             return;
         }
 
