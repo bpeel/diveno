@@ -299,16 +299,17 @@ impl Logic {
             }
         }
 
+        self.is_solved = guess.iter().find(|l| {
+            l.result != LetterResult::Correct
+        }).is_none();
+
         self.in_progress_guess.clear();
 
         self.n_guesses += 1;
         self.queue_event_once(Event::GridChanged);
         self.queue_event_once(Event::GuessEntered);
 
-        let all_letters = (1 << self.word_length) - 1;
-
-        if self.visible_letters & all_letters == all_letters {
-            self.is_solved = true;
+        if self.is_solved {
             self.queue_event_once(Event::Solved);
         }
     }
