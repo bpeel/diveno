@@ -80,6 +80,7 @@ pub struct Logic {
     // the right letter position.
     visible_letters: u32,
     dead_key_queued: bool,
+    is_solved: bool,
 }
 
 impl Logic {
@@ -96,6 +97,7 @@ impl Logic {
             letter_counter: LetterCounter::new(),
             visible_letters: 1,
             dead_key_queued: false,
+            is_solved: false,
         };
 
         logic.pick_word();
@@ -143,6 +145,7 @@ impl Logic {
         self.n_guesses = 0;
         self.visible_letters = 1;
         self.dead_key_queued = false;
+        self.is_solved = false;
     }
 
     pub fn word(&self) -> &str {
@@ -247,7 +250,7 @@ impl Logic {
     }
 
     fn enter_guess(&mut self) {
-        if self.n_guesses >= N_GUESSES {
+        if self.is_solved || self.n_guesses >= N_GUESSES {
             return;
         }
 
@@ -300,6 +303,12 @@ impl Logic {
         self.n_guesses += 1;
         self.queue_event_once(Event::GridChanged);
         self.queue_event_once(Event::GuessEntered);
+
+        let all_letters = (1 << self.word_length) - 1;
+
+        if self.visible_letters & all_letters == all_letters {
+            self.is_solved = true;
+        }
     }
 
     pub fn visible_letters(&self) -> u32 {
@@ -312,6 +321,10 @@ impl Logic {
 
     pub fn n_guesses(&self) -> usize {
         self.n_guesses
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.is_solved || self.n_guesses >= N_GUESSES
     }
 }
 
