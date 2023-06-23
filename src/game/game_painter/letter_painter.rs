@@ -179,6 +179,7 @@ impl LetterPainter {
                 self.vertices_dirty = true;
                 self.transform_dirty = true;
             },
+            logic::Event::Solved |
             logic::Event::GridChanged => self.vertices_dirty = true,
             logic::Event::GuessEntered => {
                 self.reveal_start_time = Some(timer::Timer::new());

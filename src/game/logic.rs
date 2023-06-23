@@ -28,6 +28,7 @@ pub enum Event {
     GridChanged,
     GuessEntered,
     WrongGuessEntered,
+    Solved,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -308,6 +309,7 @@ impl Logic {
 
         if self.visible_letters & all_letters == all_letters {
             self.is_solved = true;
+            self.queue_event_once(Event::Solved);
         }
     }
 

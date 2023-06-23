@@ -320,6 +320,7 @@ impl Diveno {
             .and_then(|l| l.get_event())
         {
             match event {
+                game::logic::Event::Solved |
                 game::logic::Event::GuessEntered |
                 game::logic::Event::WrongGuessEntered |
                 game::logic::Event::WordChanged |
