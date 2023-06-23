@@ -35,6 +35,13 @@ const SHAKE_FREQUENCY: f32 = 20.0;
 // Distance to move the tile while shaking where 1 is the size of a tile
 const SHAKE_DISTANCE: f32 = 0.1;
 
+// The time for one tile to raise and lower itself again
+const WAVE_LIFT_TIME: f32 = 0.3;
+// The time between starting each tile
+const WAVE_LIFT_DELAY: f32 = 0.1;
+// The amount that a tile should rise up
+const WAVE_LIFT_DISTANCE: f32 = 0.2;
+
 #[repr(C)]
 struct Vertex {
     x: f32,
@@ -62,6 +69,7 @@ pub struct LetterPainter {
     most_quads: u32,
     reveal_start_time: Option<timer::Timer>,
     shake_start_time: Option<timer::Timer>,
+    wave_start_time: Option<timer::Timer>,
 }
 
 impl LetterPainter {
@@ -94,18 +102,20 @@ impl LetterPainter {
             most_quads: 0,
             reveal_start_time: None,
             shake_start_time: None,
+            wave_start_time: None,
         })
     }
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+        let total_reveal_time =
+            (logic.word_length() as f32 - 1.0)
+            * SECONDS_PER_LETTER
+            + TURN_TIME;
+
         let reveal_time = self.reveal_start_time.and_then(|start_time| {
             let secs = start_time.elapsed();
 
-            let total_time = (logic.word_length() as f32 - 1.0)
-                * SECONDS_PER_LETTER
-                + TURN_TIME;
-
-            if secs < total_time {
+            if secs < total_reveal_time {
                 Some(secs)
             } else {
                 self.reveal_start_time = None;
@@ -124,13 +134,29 @@ impl LetterPainter {
             }
         });
 
+        let wave_time = self.wave_start_time.and_then(|start_time| {
+            let secs = start_time.elapsed();
+
+            let total_wave_time =
+                (logic.word_length() as f32 - 1.0)
+                * WAVE_LIFT_DELAY
+                + WAVE_LIFT_TIME;
+
+            if secs < total_reveal_time + total_wave_time {
+                Some(secs - total_reveal_time)
+            } else {
+                self.wave_start_time = None;
+                None
+            }
+        });
+
         if self.transform_dirty {
             self.update_transform(logic);
             self.transform_dirty = false;
         }
 
         if self.vertices_dirty {
-            self.update_vertices(logic, reveal_time, shake_time);
+            self.update_vertices(logic, reveal_time, shake_time, wave_time);
             self.vertices_dirty = false;
         }
 
@@ -159,7 +185,10 @@ impl LetterPainter {
             gl.disable(glow::BLEND);
         }
 
-        if reveal_time.is_some() || shake_time.is_some() {
+        if reveal_time.is_some()
+            || shake_time.is_some()
+            || wave_time.is_some()
+        {
             self.vertices_dirty = true;
             true
         } else {
@@ -179,7 +208,6 @@ impl LetterPainter {
                 self.vertices_dirty = true;
                 self.transform_dirty = true;
             },
-            logic::Event::Solved |
             logic::Event::GridChanged => self.vertices_dirty = true,
             logic::Event::GuessEntered => {
                 self.reveal_start_time = Some(timer::Timer::new());
@@ -187,6 +215,10 @@ impl LetterPainter {
             },
             logic::Event::WrongGuessEntered => {
                 self.shake_start_time = Some(timer::Timer::new());
+                self.vertices_dirty = true;
+            },
+            logic::Event::Solved => {
+                self.wave_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
             },
         }
@@ -245,6 +277,7 @@ impl LetterPainter {
         logic: &logic::Logic,
         reveal_time: Option<f32>,
         shake_time: Option<f32>,
+        wave_time: Option<f32>,
     ) {
         self.vertices.clear();
 
@@ -260,7 +293,7 @@ impl LetterPainter {
                     reveal_time.unwrap()
                 );
             } else {
-                self.add_guess(guess, guess_num as u32);
+                self.add_guess(guess, guess_num as u32, wave_time);
             }
 
             guess_num += 1;
@@ -284,9 +317,11 @@ impl LetterPainter {
                 guess_num += 1;
             }
 
-            for y in guess_num..logic::N_GUESSES {
-                for x in 0..logic.word_length() {
-                    self.add_letter(0, x as f32, y as u32, ' ');
+            for x in 0..logic.word_length() {
+                let wave_offset = wave_offset_for_column(wave_time, x as f32);
+
+                for y in guess_num..logic::N_GUESSES {
+                    self.add_letter(0, x as f32, y as f32 + wave_offset, ' ');
                 }
             }
         }
@@ -296,8 +331,11 @@ impl LetterPainter {
         &mut self,
         guess: &[logic::Letter],
         y: u32,
+        wave_time: Option<f32>,
     ) {
         for (x, letter) in guess.iter().enumerate() {
+            let wave_offset = wave_offset_for_column(wave_time, x as f32);
+
             let color = match letter.result {
                 logic::LetterResult::Correct => 2,
                 logic::LetterResult::WrongPosition => 3,
@@ -307,7 +345,7 @@ impl LetterPainter {
             self.add_letter(
                 color,
                 x as f32,
-                y,
+                y as f32 + wave_offset,
                 letter.letter
             );
         }
@@ -334,14 +372,14 @@ impl LetterPainter {
             self.add_rotated_letter(
                 0,
                 x as f32,
-                y,
+                y as f32,
                 rotation_progress,
                 letter.letter,
             );
             self.add_rotated_letter(
                 color,
                 x as f32,
-                y,
+                y as f32,
                 rotation_progress + 1.0,
                 letter.letter,
             );
@@ -365,7 +403,7 @@ impl LetterPainter {
             .unwrap_or(0.0);
 
         for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
-            self.add_letter(0, pos as f32 + shake_offset, y, ch);
+            self.add_letter(0, pos as f32 + shake_offset, y as f32, ch);
             added += 1;
         }
 
@@ -377,11 +415,11 @@ impl LetterPainter {
                     '.'
                 };
 
-                self.add_letter(0, index as f32 + shake_offset, y, ch);
+                self.add_letter(0, index as f32 + shake_offset, y as f32, ch);
             }
         } else {
             for x in added..logic.word_length() {
-                self.add_letter(0, x as f32 + shake_offset, y, '.');
+                self.add_letter(0, x as f32 + shake_offset, y as f32, '.');
             }
         }
     }
@@ -391,8 +429,9 @@ impl LetterPainter {
         logic: &logic::Logic,
         reveal_time: Option<f32>,
         shake_time: Option<f32>,
+        wave_time: Option<f32>,
     ) {
-        self.fill_vertices_array(logic, reveal_time, shake_time);
+        self.fill_vertices_array(logic, reveal_time, shake_time, wave_time);
 
         let n_quads = self.vertices.len() as u32 / 4;
 
@@ -428,7 +467,7 @@ impl LetterPainter {
         &mut self,
         color: usize,
         x: f32,
-        y: u32,
+        y: f32,
         rotation_progress: f32,
         letter: char
     ) {
@@ -442,8 +481,6 @@ impl LetterPainter {
         };
 
         let letter = &letters[letter_index];
-
-        let y = y as f32;
 
         self.vertices.push(Vertex {
             x,
@@ -483,7 +520,7 @@ impl LetterPainter {
         &mut self,
         color: usize,
         x: f32,
-        y: u32,
+        y: f32,
         letter: char
     ) {
         self.add_rotated_letter(color, x, y, 0.0, letter);
@@ -544,4 +581,13 @@ fn create_letter_buffer(paint_data: &PaintData) -> Result<Rc<Buffer>, String> {
     let buffer = Buffer::new(Rc::clone(&paint_data.gl))?;
 
     Ok(Rc::new(buffer))
+}
+
+fn wave_offset_for_column(wave_time: Option<f32>, x: f32) -> f32 {
+    wave_time.map(|wave_time| {
+        let t = ((wave_time - x * WAVE_LIFT_DELAY) / WAVE_LIFT_TIME)
+            .clamp(0.0, 1.0);
+
+        (t * PI).sin() * -WAVE_LIFT_DISTANCE
+    }).unwrap_or(0.0)
 }
