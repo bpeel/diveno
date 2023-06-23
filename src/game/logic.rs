@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use super::letter_texture;
 use super::dictionary::Dictionary;
+use super::random;
 
 pub const N_GUESSES: usize = 6;
 
@@ -66,6 +67,7 @@ static HATABLE_LETTERS: [(char, char); 12] = [
 
 pub struct Logic {
     dictionary: Dictionary,
+    word_list: Box<[u64]>,
     word: String,
     word_length: usize,
     in_progress_guess: String,
@@ -81,9 +83,10 @@ pub struct Logic {
 }
 
 impl Logic {
-    fn new(dictionary: Dictionary) -> Logic {
+    fn new(dictionary: Dictionary, word_list: Box<[u64]>) -> Logic {
         let mut logic = Logic {
             dictionary,
+            word_list,
             word: String::new(),
             word_length: 0,
             in_progress_guess: String::new(),
@@ -95,9 +98,23 @@ impl Logic {
             dead_key_queued: false,
         };
 
-        logic.set_word("TERPOMO");
+        logic.pick_word();
 
         logic
+    }
+
+    fn pick_word(&mut self) {
+        if !self.word_list.is_empty() {
+            let word_num = random::random_range(self.word_list.len());
+            let word = self.word_list[word_num];
+
+            if let Some(word) = self.dictionary.extract_word(word) {
+                self.set_word(&word);
+                return;
+            }
+        }
+
+        self.set_word("eraro");
     }
 
     fn set_word(&mut self, word: &str) {
@@ -367,18 +384,22 @@ impl LetterCounter {
 
 pub struct LogicLoader {
     dictionary: Option<Dictionary>,
+    word_list: Option<Box<[u64]>>,
 }
 
 impl LogicLoader {
     pub fn new() -> LogicLoader {
         LogicLoader {
             dictionary: None,
+            word_list: None,
         }
     }
 
     pub fn next_filename(&self) -> Option<&'static str> {
         if self.dictionary.is_none() {
             Some("dictionary.bin")
+        } else if self.word_list.is_none() {
+            Some("wordlist.bin")
         } else {
             None
         }
@@ -387,12 +408,24 @@ impl LogicLoader {
     pub fn loaded(&mut self, source: Box<[u8]>) {
         if self.dictionary.is_none() {
             self.dictionary = Some(Dictionary::new(source));
+        } else if self.word_list.is_none() {
+            const WORD_SIZE: usize =  std::mem::size_of::<u64>();
+            let n_words = source.len() / WORD_SIZE;
+            let mut words = Vec::<u64>::with_capacity(n_words);
+
+            for index in (0..source.len()).step_by(WORD_SIZE) {
+                let mut bytes = [0u8; WORD_SIZE];
+                bytes.copy_from_slice(&source[index..index + WORD_SIZE]);
+                words.push(u64::from_le_bytes(bytes));
+            }
+
+            self.word_list = Some(words.into_boxed_slice());
         } else {
             unreachable!("too many data files loaded!");
         }
     }
 
     pub fn complete(self) -> Logic {
-        Logic::new(self.dictionary.unwrap())
+        Logic::new(self.dictionary.unwrap(), self.word_list.unwrap())
     }
 }
