@@ -11,6 +11,10 @@ path = "src/create_tile_texture.rs"
 name = "make-word-list"
 path = "src/make_word_list.rs"
 
+[[bin]]
+name = "dump-word-list"
+path = "src/dump_word_list.rs"
+
 [dependencies.cairo-rs]
 version = "0.17.10"
 default-features = false

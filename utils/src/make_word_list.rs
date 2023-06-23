@@ -14,10 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+mod dictionary;
+
 use std::process::ExitCode;
 use std::{fmt, io};
 use io::Write;
 use std::ffi::OsStr;
+use dictionary::Node;
 
 enum CompressError {
     TooManyBits,
@@ -32,48 +35,6 @@ impl fmt::Display for CompressError {
             CompressError::NotInDictionary => write!(f, "Not in dictionary"),
             CompressError::DictionaryCorrupt => write!(f, "Dictionary corrupt"),
         }
-    }
-}
-
-fn read_offset(data: &[u8]) -> Option<(&[u8], usize)> {
-    let mut offset = 0;
-
-    for (byte_num, &byte) in data.iter().enumerate() {
-        if (byte_num + 1) * 7 > usize::BITS as usize {
-            return None;
-        }
-
-        offset |= ((byte & 0x7f) as usize) << (byte_num * 7);
-
-        if byte & 0x80 == 0 {
-            return Some((&data[byte_num + 1..], offset));
-        }
-    }
-
-    None
-}
-
-struct Node<'a> {
-    sibling_offset: usize,
-    child_offset: usize,
-    letter: char,
-    remainder: &'a [u8],
-}
-
-impl<'a> Node<'a> {
-    fn extract(data: &'a [u8]) -> Option<Node<'a>> {
-        let (data, sibling_offset) = read_offset(data)?;
-        let (data, child_offset) = read_offset(data)?;
-
-        let utf8_len = std::cmp::max(data.first()?.leading_ones() as usize, 1);
-        let letter = std::str::from_utf8(data.get(0..utf8_len)?).ok()?;
-
-        Some(Node {
-            sibling_offset,
-            child_offset,
-            letter: letter.chars().next().unwrap(),
-            remainder: data,
-        })
     }
 }
 
