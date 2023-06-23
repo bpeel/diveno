@@ -20,6 +20,8 @@ use std::process::ExitCode;
 use std::mem::size_of;
 use dictionary::Node;
 
+const BITS_PER_CHOICE: u32 = 5;
+
 fn append_word(buf: &mut String, dictionary: &[u8], mut word: u64) -> bool {
     // Skip the root node
     let Some(Node { remainder, child_offset, .. }) =
@@ -35,30 +37,15 @@ fn append_word(buf: &mut String, dictionary: &[u8], mut word: u64) -> bool {
     let mut data = &remainder[child_offset..];
 
     loop {
-        let Some(node) = Node::extract(data)
-        else {
-            return false;
-        };
+        let to_skip = word & ((1 << BITS_PER_CHOICE) - 1);
+        word >>= BITS_PER_CHOICE;
 
-        let bit = word & 1;
-        word >>= 1;
-
-        if bit == 1 {
-            if node.letter == '\0' {
-                return true;
-            }
-
-            buf.push(node.letter);
-
-            if node.child_offset == 0 {
+        for _ in 0..to_skip {
+            let Some(node) = Node::extract(data)
+            else {
                 return false;
-            }
-
-            data = match node.remainder.get(node.child_offset..) {
-                Some(d) => d,
-                None => return false,
             };
-        } else {
+
             if node.sibling_offset == 0 {
                 return false;
             }
@@ -68,6 +55,26 @@ fn append_word(buf: &mut String, dictionary: &[u8], mut word: u64) -> bool {
                 None => return false,
             };
         }
+
+        let Some(node) = Node::extract(data)
+        else {
+            return false;
+        };
+
+        if node.letter == '\0' {
+            return true;
+        }
+
+        buf.push(node.letter);
+
+        if node.child_offset == 0 {
+            return false;
+        }
+
+        data = match node.remainder.get(node.child_offset..) {
+            Some(d) => d,
+            None => return false,
+        };
     }
 }
 

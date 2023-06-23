@@ -22,8 +22,20 @@ use io::Write;
 use std::ffi::OsStr;
 use dictionary::Node;
 
+// The word list is stored as a list of u64’s. That way each word
+// takes up the same amount of space and it’s easy to index to a
+// random word. The bits of the u64 are split into 5-bit numbers. Each
+// number represents the number of siblings to skip while traversing
+// the dictionary graph before descending to a child. When the number
+// points to descending to a '\0' character in the dictionary the word
+// is finished. This means we can use a dictionary whose alphabet is
+// at most 32 letters and each word is at most 64/5=12 letters long.
+
+const BITS_PER_CHOICE: u32 = 5;
+
 enum CompressError {
     TooManyBits,
+    TooManySkips,
     NotInDictionary,
     DictionaryCorrupt,
 }
@@ -32,6 +44,7 @@ impl fmt::Display for CompressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CompressError::TooManyBits => write!(f, "Too many bits"),
+            CompressError::TooManySkips => write!(f, "Too many skips"),
             CompressError::NotInDictionary => write!(f, "Not in dictionary"),
             CompressError::DictionaryCorrupt => write!(f, "Dictionary corrupt"),
         }
@@ -56,6 +69,7 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u64, CompressError> {
     let mut data = &remainder[child_offset..];
     let mut word = word.chars().flat_map(|c| c.to_lowercase());
     let mut next_letter = word.next();
+    let mut skip_count = 0;
 
     loop {
         let Some(node) = Node::extract(data)
@@ -64,12 +78,16 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u64, CompressError> {
         };
 
         if node.letter == next_letter.unwrap_or('\0') {
+            if (n_choices + 1) * BITS_PER_CHOICE > u64::BITS {
+                return Err(CompressError::TooManyBits);
+            } else {
+                choices |= skip_count << (n_choices * BITS_PER_CHOICE);
+                n_choices += 1;
+                skip_count = 0;
+            }
+
             if next_letter.is_none() {
-                if n_choices >= u64::BITS {
-                    return Err(CompressError::TooManyBits);
-                } else {
-                    return Ok(choices | (1 << n_choices));
-                }
+                return Ok(choices);
             }
 
             if node.child_offset == 0 {
@@ -77,13 +95,6 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u64, CompressError> {
             }
 
             next_letter = word.next();
-
-            if n_choices >= u64::BITS {
-                return Err(CompressError::TooManyBits);
-            } else {
-                choices |= 1 << n_choices;
-                n_choices += 1;
-            }
 
             data = match node.remainder.get(node.child_offset..) {
                 Some(d) => d,
@@ -94,10 +105,10 @@ fn compress_word(dictionary: &[u8], word: &str) -> Result<u64, CompressError> {
                 return Err(CompressError::NotInDictionary);
             }
 
-            if n_choices >= u64::BITS {
-                return Err(CompressError::TooManyBits);
-            } else {
-                n_choices += 1;
+            skip_count += 1;
+
+            if u64::BITS - skip_count.leading_zeros() > BITS_PER_CHOICE {
+                return Err(CompressError::TooManySkips);
             }
 
             data = match node.remainder.get(node.sibling_offset..) {
