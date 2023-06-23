@@ -101,9 +101,25 @@ impl Logic {
     }
 
     fn set_word(&mut self, word: &str) {
+        let mut word_length = 0;
+
         self.word.clear();
-        self.word.push_str(word);
-        self.word_length = word.chars().count();
+        self.word.extend(
+            word
+                .chars()
+                .flat_map(char::to_uppercase)
+                .filter(|&c| {
+                    if is_valid_letter(c) {
+                        word_length += 1;
+                        true
+                    } else {
+                        false
+                    }
+                })
+        );
+
+        self.word_length = word_length;
+
         self.in_progress_guess.clear();
         self.queue_event_once(Event::WordChanged);
         self.queue_event_once(Event::GridChanged);
