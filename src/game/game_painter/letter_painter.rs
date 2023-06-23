@@ -266,20 +266,24 @@ impl LetterPainter {
         }
 
         if guess_num < logic::N_GUESSES {
-            let visible_letters = if reveal_time.is_some() {
-                0
-            } else {
-                logic.visible_letters()
-            };
+            if !logic.is_finished() {
+                let visible_letters = if reveal_time.is_some() {
+                    0
+                } else {
+                    logic.visible_letters()
+                };
 
-            self.add_in_progress_guess(
-                logic,
-                guess_num as u32,
-                visible_letters,
-                shake_time,
-            );
+                self.add_in_progress_guess(
+                    logic,
+                    guess_num as u32,
+                    visible_letters,
+                    shake_time,
+                );
 
-            for y in guess_num + 1..logic::N_GUESSES {
+                guess_num += 1;
+            }
+
+            for y in guess_num..logic::N_GUESSES {
                 for x in 0..logic.word_length() {
                     self.add_letter(0, x as f32, y as u32, ' ');
                 }
