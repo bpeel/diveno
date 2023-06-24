@@ -23,12 +23,14 @@ pub enum Sound {
     CorrectLetter,
     WrongPosition,
     WrongLetter,
+    Solved,
 }
 
-pub static SOUND_FILES: [&'static str; 3] = [
+pub static SOUND_FILES: [&'static str; 4] = [
     "correct-letter.wav",
     "wrong-position.wav",
     "wrong-letter.wav",
+    "solved.wav",
 ];
 
 pub struct SoundQueue {
@@ -102,7 +104,7 @@ impl SoundQueue {
             logic::Event::GridChanged => (),
             logic::Event::GuessEntered => self.queue_guess_sounds(logic),
             logic::Event::WrongGuessEntered => (),
-            logic::Event::Solved => (),
+            logic::Event::Solved => self.queue_solved(logic),
         }
     }
 
@@ -127,5 +129,15 @@ impl SoundQueue {
                 );
             }
         }
+    }
+
+    fn queue_solved(
+        &mut self,
+        logic: &logic::Logic,
+    ) {
+        self.queue_sound(
+            Sound::Solved,
+            logic.word_length() as i64 * timing::MILLIS_PER_LETTER
+        );
     }
 }
