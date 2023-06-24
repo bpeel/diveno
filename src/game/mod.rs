@@ -27,3 +27,4 @@ pub mod timer;
 pub mod dictionary;
 pub mod random;
 pub mod timing;
+pub mod sound_queue;
