@@ -24,7 +24,7 @@ use nalgebra::{Vector3, Perspective3};
 use std::f32::consts::PI;
 
 // Number of milliseconds per letter for the animation
-const MILLIS_PER_LETTER: i64 = 300;
+use super::super::timing::MILLIS_PER_LETTER;
 // Time for a letter to turn
 const TURN_TIME: i64 = 500;
 

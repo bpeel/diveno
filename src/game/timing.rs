@@ -14,16 +14,5 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod shaders;
-pub mod images;
-pub mod paint_data;
-pub mod game_painter;
-pub mod logic;
-pub mod buffer;
-pub mod letter_texture;
-pub mod array_object;
-pub mod quad_tool;
-pub mod timer;
-pub mod dictionary;
-pub mod random;
-pub mod timing;
+// Number of milliseconds per letter for the reveal
+pub const MILLIS_PER_LETTER: i64 = 300;
