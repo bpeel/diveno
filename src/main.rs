@@ -17,16 +17,18 @@
 mod game;
 mod sdl_images;
 
-use game::{logic, shaders, images, game_painter, paint_data};
+use game::{logic, shaders, images, game_painter, paint_data, sound_queue};
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
+use sdl2::mixer::{Channel, Chunk};
 use sdl2::keyboard::Keycode;
 use std::process::ExitCode;
 use std::rc::Rc;
 use glow::HasContext;
 
 struct Context {
+    _audio_subsystem: sdl2::AudioSubsystem,
     gl: Rc<glow::Context>,
     _gl_context: sdl2::video::GLContext,
     window: sdl2::video::Window,
@@ -74,7 +76,17 @@ impl Context {
             })
         };
 
+        let audio_subsystem = sdl.audio()?;
+
+        sdl2::mixer::open_audio(
+            44100, // frequency
+            sdl2::mixer::DEFAULT_FORMAT,
+            2, // channels
+            512, // chunk_size
+        )?;
+
         Ok(Context {
+            _audio_subsystem: audio_subsystem,
             gl: Rc::new(gl),
             _gl_context: gl_context,
             window,
@@ -96,6 +108,8 @@ fn check_extension(context: &Context, name: &str) -> bool {
 struct GameData<'a> {
     context: &'a mut Context,
     logic: logic::Logic,
+    sound_files: Vec<Chunk>,
+    sound_queue: sound_queue::SoundQueue,
     game_painter: game_painter::GamePainter,
     redraw_queued: bool,
     should_quit: bool,
@@ -118,9 +132,13 @@ impl<'a> GameData<'a> {
 
         let logic = load_logic()?;
 
+        let sound_files = load_sound_files()?;
+
         Ok(GameData {
             context,
             logic,
+            sound_files,
+            sound_queue: sound_queue::SoundQueue::new(),
             game_painter,
             redraw_queued: true,
             should_quit: false,
@@ -172,6 +190,12 @@ fn handle_event(game_data: &mut GameData, event: Event) {
     }
 }
 
+fn flush_sounds(game_data: &mut GameData) {
+    while let Some(sound) = game_data.sound_queue.next_ready_sound() {
+        let _ = Channel::all().play(&game_data.sound_files[sound as usize], 0);
+    }
+}
+
 fn flush_logic_events(game_data: &mut GameData) {
     while let Some(event) = game_data.logic.get_event() {
         match event {
@@ -185,6 +209,7 @@ fn flush_logic_events(game_data: &mut GameData) {
         }
 
         game_data.game_painter.handle_logic_event(&event);
+        game_data.sound_queue.handle_logic_event(&game_data.logic, &event);
     }
 }
 
@@ -207,15 +232,31 @@ fn main_loop(game_data: &mut GameData) {
 
             redraw(game_data);
         } else {
-            let event = game_data.context.event_pump.wait_event();
-            handle_event(game_data, event);
-            flush_logic_events(game_data);
+            let event = match game_data.sound_queue.next_delay() {
+                Some(timeout) => {
+                    game_data.context.event_pump.wait_event_timeout(
+                        timeout as u32
+                    )
+                },
+                None => Some(game_data.context.event_pump.wait_event()),
+            };
+
+            if let Some(event) = event {
+                handle_event(game_data, event);
+                flush_logic_events(game_data);
+            }
         }
+
+        flush_sounds(game_data);
     }
 }
 
+fn data_filename(filename: &str) -> std::path::PathBuf {
+    ["data", filename].iter().collect()
+}
+
 fn load_data_file(filename: &str) -> Result<Vec<u8>, String> {
-    let path: std::path::PathBuf = ["data", filename].iter().collect();
+    let path = data_filename(filename);
 
     std::fs::read(&path).map_err(|e| format!("{}: {}", filename, e))
 }
@@ -238,6 +279,16 @@ fn load_shaders(gl: Rc<glow::Context>) -> Result<shaders::Shaders, String> {
     }
 
     loader.complete()
+}
+
+fn load_sound_files() -> Result<Vec<Chunk>, String> {
+    let mut sound_files = Vec::with_capacity(sound_queue::SOUND_FILES.len());
+
+    for filename in sound_queue::SOUND_FILES.iter() {
+        sound_files.push(Chunk::from_file(data_filename(filename))?);
+    }
+
+    Ok(sound_files)
 }
 
 pub fn main() -> ExitCode {
