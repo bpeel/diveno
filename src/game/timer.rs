@@ -47,14 +47,14 @@ impl Timer {
         }
     }
 
-    pub fn elapsed(&self) -> f32 {
+    pub fn elapsed(&self) -> i64 {
         #[cfg(target_arch = "wasm32")]
         {
-            (Timer::now() - self.start_time) as f32 / 1000.0
+            (Timer::now() - self.start_time) as i64
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            self.start_time.elapsed().as_millis() as f32 / 1000.0
+            self.start_time.elapsed().as_millis() as i64
         }
     }
 }

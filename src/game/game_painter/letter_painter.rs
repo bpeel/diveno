@@ -23,22 +23,22 @@ use glow::HasContext;
 use nalgebra::{Vector3, Perspective3};
 use std::f32::consts::PI;
 
-// Number of seconds per letter for the animation
-const SECONDS_PER_LETTER: f32 = 0.3;
+// Number of milliseconds per letter for the animation
+const MILLIS_PER_LETTER: i64 = 300;
 // Time for a letter to turn
-const TURN_TIME: f32 = 0.5;
+const TURN_TIME: i64 = 500;
 
 // How long to shake the guess for when a wrong guess is entered
-const SHAKE_TIME: f32 = 0.5;
+const SHAKE_TIME: i64 = 500;
 // The frequency of the shaking in shakes per second
-const SHAKE_FREQUENCY: f32 = 20.0;
+const SHAKE_FREQUENCY: i64 = 20;
 // Distance to move the tile while shaking where 1 is the size of a tile
 const SHAKE_DISTANCE: f32 = 0.1;
 
 // The time for one tile to raise and lower itself again
-const WAVE_LIFT_TIME: f32 = 0.3;
+const WAVE_LIFT_TIME: i64 = 300;
 // The time between starting each tile
-const WAVE_LIFT_DELAY: f32 = 0.1;
+const WAVE_LIFT_DELAY: i64 = 100;
 // The amount that a tile should rise up
 const WAVE_LIFT_DISTANCE: f32 = 0.2;
 
@@ -108,15 +108,15 @@ impl LetterPainter {
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
         let total_reveal_time =
-            (logic.word_length() as f32 - 1.0)
-            * SECONDS_PER_LETTER
+            (logic.word_length() as i64 - 1)
+            * MILLIS_PER_LETTER
             + TURN_TIME;
 
         let reveal_time = self.reveal_start_time.and_then(|start_time| {
-            let secs = start_time.elapsed();
+            let millis = start_time.elapsed();
 
-            if secs < total_reveal_time {
-                Some(secs)
+            if millis < total_reveal_time {
+                Some(millis)
             } else {
                 self.reveal_start_time = None;
                 None
@@ -124,10 +124,10 @@ impl LetterPainter {
         });
 
         let shake_time = self.shake_start_time.and_then(|start_time| {
-            let secs = start_time.elapsed();
+            let millis = start_time.elapsed();
 
-            if secs < SHAKE_TIME {
-                Some(secs)
+            if millis < SHAKE_TIME {
+                Some(millis)
             } else {
                 self.shake_start_time = None;
                 None
@@ -135,15 +135,15 @@ impl LetterPainter {
         });
 
         let wave_time = self.wave_start_time.and_then(|start_time| {
-            let secs = start_time.elapsed();
+            let millis = start_time.elapsed();
 
             let total_wave_time =
-                (logic.word_length() as f32 - 1.0)
+                (logic.word_length() as i64 - 1)
                 * WAVE_LIFT_DELAY
                 + WAVE_LIFT_TIME;
 
-            if secs < total_reveal_time + total_wave_time {
-                Some(secs - total_reveal_time)
+            if millis < total_reveal_time + total_wave_time {
+                Some(millis - total_reveal_time)
             } else {
                 self.wave_start_time = None;
                 None
@@ -275,9 +275,9 @@ impl LetterPainter {
     fn fill_vertices_array(
         &mut self,
         logic: &logic::Logic,
-        reveal_time: Option<f32>,
-        shake_time: Option<f32>,
-        wave_time: Option<f32>,
+        reveal_time: Option<i64>,
+        shake_time: Option<i64>,
+        wave_time: Option<i64>,
     ) {
         self.vertices.clear();
 
@@ -318,7 +318,7 @@ impl LetterPainter {
             }
 
             for x in 0..logic.word_length() {
-                let wave_offset = wave_offset_for_column(wave_time, x as f32);
+                let wave_offset = wave_offset_for_column(wave_time, x);
 
                 for y in guess_num..logic::N_GUESSES {
                     self.add_letter(0, x as f32, y as f32 + wave_offset, ' ');
@@ -331,10 +331,10 @@ impl LetterPainter {
         &mut self,
         guess: &[logic::Letter],
         y: u32,
-        wave_time: Option<f32>,
+        wave_time: Option<i64>,
     ) {
         for (x, letter) in guess.iter().enumerate() {
-            let wave_offset = wave_offset_for_column(wave_time, x as f32);
+            let wave_offset = wave_offset_for_column(wave_time, x);
 
             let color = match letter.result {
                 logic::LetterResult::Correct => 2,
@@ -355,7 +355,7 @@ impl LetterPainter {
         &mut self,
         guess: &[logic::Letter],
         y: u32,
-        animation_time: f32,
+        animation_time: i64,
     ) {
         for (x, letter) in guess.iter().enumerate() {
             let color = match letter.result {
@@ -365,8 +365,8 @@ impl LetterPainter {
             };
 
             let rotation_progress =
-                ((animation_time - SECONDS_PER_LETTER * x as f32)
-                 / TURN_TIME)
+                ((animation_time - MILLIS_PER_LETTER * x as i64) as f32
+                 / TURN_TIME as f32)
                 .clamp(0.0, 1.0);
 
             self.add_rotated_letter(
@@ -391,13 +391,13 @@ impl LetterPainter {
         logic: &logic::Logic,
         y: u32,
         visible_letters: u32,
-        shake_time: Option<f32>,
+        shake_time: Option<i64>,
     ) {
         let mut added = 0;
 
         let shake_offset = shake_time
             .map(|t| {
-                (((t * SHAKE_FREQUENCY) as u32 & 1) as f32 * 2.0 - 1.0)
+                (((t * SHAKE_FREQUENCY / 1000) & 1) * 2 - 1) as f32
                     * SHAKE_DISTANCE
             })
             .unwrap_or(0.0);
@@ -427,9 +427,9 @@ impl LetterPainter {
     fn update_vertices(
         &mut self,
         logic: &logic::Logic,
-        reveal_time: Option<f32>,
-        shake_time: Option<f32>,
-        wave_time: Option<f32>,
+        reveal_time: Option<i64>,
+        shake_time: Option<i64>,
+        wave_time: Option<i64>,
     ) {
         self.fill_vertices_array(logic, reveal_time, shake_time, wave_time);
 
@@ -583,9 +583,10 @@ fn create_letter_buffer(paint_data: &PaintData) -> Result<Rc<Buffer>, String> {
     Ok(Rc::new(buffer))
 }
 
-fn wave_offset_for_column(wave_time: Option<f32>, x: f32) -> f32 {
+fn wave_offset_for_column(wave_time: Option<i64>, x: usize) -> f32 {
     wave_time.map(|wave_time| {
-        let t = ((wave_time - x * WAVE_LIFT_DELAY) / WAVE_LIFT_TIME)
+        let t = ((wave_time - x as i64 * WAVE_LIFT_DELAY) as f32
+                 / WAVE_LIFT_TIME as f32)
             .clamp(0.0, 1.0);
 
         (t * PI).sin() * -WAVE_LIFT_DISTANCE
