@@ -23,13 +23,15 @@ pub enum Sound {
     CorrectLetter,
     WrongPosition,
     WrongLetter,
+    BadWord,
     Solved,
 }
 
-pub static SOUND_FILES: [&'static str; 4] = [
+pub static SOUND_FILES: [&'static str; 5] = [
     "correct-letter.wav",
     "wrong-position.wav",
     "wrong-letter.wav",
+    "bad-word.wav",
     "solved.wav",
 ];
 
@@ -103,7 +105,9 @@ impl SoundQueue {
             logic::Event::WordChanged => (),
             logic::Event::GridChanged => (),
             logic::Event::GuessEntered => self.queue_guess_sounds(logic),
-            logic::Event::WrongGuessEntered => (),
+            logic::Event::WrongGuessEntered => {
+                self.queue_sound(Sound::BadWord, 0);
+            },
             logic::Event::Solved => self.queue_solved(logic),
         }
     }
