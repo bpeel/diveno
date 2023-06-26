@@ -30,6 +30,7 @@ version = "0.3.64"
 features = [
          "Element",
          "DomRect",
+         "HtmlAudioElement",
          "HtmlCanvasElement",
          "HtmlImageElement",
          "HtmlInputElement",

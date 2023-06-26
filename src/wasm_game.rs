@@ -24,6 +24,8 @@ use game::logic::{LogicLoader, Logic};
 use game::shaders::ShaderLoader;
 use game::paint_data::PaintData;
 use game::game_painter::GamePainter;
+use game::sound_queue::SoundQueue;
+use game::timer::Timer;
 
 fn show_error(message: &str) {
     console::log_1(&message.into());
@@ -346,6 +348,14 @@ impl Loader {
             },
         };
 
+        let sounds = match Loader::load_sounds() {
+            Ok(s) => s,
+            Err(e) => {
+                show_error(&e);
+                return;
+            }
+        };
+
         let has_vertex_array_object =
             context.gl
             .supported_extensions()
@@ -363,7 +373,7 @@ impl Loader {
         match GamePainter::new(paint_data) {
             Ok(painter) => {
                 let _ = context.canvas.style().set_property("display", "block");
-                let diveno = Diveno::new(context, painter, logic);
+                let diveno = Diveno::new(context, painter, sounds, logic);
                 // Leak the main diveno object so that it will live as
                 // long as the web page
                 std::mem::forget(diveno);
@@ -371,12 +381,40 @@ impl Loader {
             Err(e) => show_error(&e),
         }
     }
+
+    fn load_sounds() -> Result<Vec<web_sys::HtmlAudioElement>, String> {
+        let sound_files = &game::sound_queue::SOUND_FILES;
+
+        let mut sounds = Vec::with_capacity(sound_files.len());
+
+        for sound in sound_files.iter() {
+            match web_sys::HtmlAudioElement::new_with_src(
+                &format!("data/{}", sound)
+            ) {
+                Ok(audio) => sounds.push(audio),
+                Err(_) => {
+                    return Err("Error creating audio element".to_string());
+                },
+            }
+        }
+
+        Ok(sounds)
+    }
+}
+
+struct SoundCallback {
+    handle: i32,
+    timestamp: i64,
 }
 
 struct Diveno {
     context: Context,
     painter: GamePainter,
+    sounds: Vec<web_sys::HtmlAudioElement>,
+    sound_queue: SoundQueue,
     logic: Logic,
+
+    start_time: Timer,
 
     animation_frame_handle: Option<i32>,
     redraw_closure: Option<Closure<dyn Fn()>>,
@@ -384,22 +422,31 @@ struct Diveno {
     resize_closure: Option<Closure<dyn Fn()>>,
 
     keydown_closure: Option<Closure::<dyn Fn(JsValue)>>,
+
+    queued_sound_callback: Option<SoundCallback>,
+    sound_closure: Option<Closure::<dyn Fn()>>,
 }
 
 impl Diveno {
     fn new(
         context: Context,
         painter: GamePainter,
+        sounds: Vec<web_sys::HtmlAudioElement>,
         logic: Logic
     ) -> Box<Diveno> {
         let mut diveno = Box::new(Diveno {
             context,
             painter,
+            sounds,
+            sound_queue: SoundQueue::new(),
             logic,
+            start_time: Timer::new(),
             animation_frame_handle: None,
             redraw_closure: None,
             resize_closure: None,
             keydown_closure: None,
+            queued_sound_callback: None,
+            sound_closure: None,
         });
 
         let diveno_pointer = diveno.as_mut() as *mut Diveno;
@@ -435,10 +482,69 @@ impl Diveno {
         diveno
     }
 
+    fn flush_sounds(&mut self) {
+        while let Some(sound) = self.sound_queue.next_ready_sound() {
+            let sound = &self.sounds[sound as usize];
+
+            if sound.ready_state() > 0 {
+                sound.set_current_time(0.0);
+                let _ = sound.play();
+            }
+        }
+    }
+
+    fn update_next_sound(&mut self) {
+        if let Some(delay) = self.sound_queue.next_delay() {
+            let next_time = self.start_time.elapsed() + delay;
+
+            if let Some(cb) = self.queued_sound_callback.as_ref() {
+                if cb.timestamp > next_time {
+                    self.context.window.clear_timeout_with_handle(cb.handle);
+                    self.queued_sound_callback = None;
+                } else {
+                    // There is already a callback queued with an
+                    // earlier time so we don’t need to do anything
+                    return;
+                }
+            }
+
+            let diveno_pointer = self as *mut Diveno;
+
+            let sound_closure = self.sound_closure.get_or_insert_with(|| {
+                Closure::<dyn Fn()>::new(move || {
+                    let diveno = unsafe { &mut *diveno_pointer };
+                    diveno.queued_sound_callback = None;
+                    diveno.flush_sounds();
+                    diveno.update_next_sound();
+                })
+            });
+
+            let w = &self.context.window;
+
+            match w.set_timeout_with_callback_and_timeout_and_arguments_0(
+                sound_closure.as_ref().unchecked_ref(),
+                delay as i32 + 1,
+            ) {
+                Ok(handle) => {
+                    self.queued_sound_callback = Some(SoundCallback {
+                        handle,
+                        timestamp: next_time,
+                    });
+                },
+                Err(_) => {
+                    console::log_1(&"Error queuing sound timout".into());
+                },
+            }
+        }
+    }
+
     fn flush_logic_events(&mut self) -> bool {
         let mut redraw_queued = false;
+        let mut had_event = false;
 
         while let Some(event) = self.logic.get_event() {
+            had_event = true;
+
             match event {
                 game::logic::Event::Solved |
                 game::logic::Event::GuessEntered |
@@ -450,6 +556,11 @@ impl Diveno {
             }
 
             self.painter.handle_logic_event(&event);
+            self.sound_queue.handle_logic_event(&self.logic, &event);
+        }
+
+        if had_event {
+            self.update_next_sound();
         }
 
         redraw_queued
