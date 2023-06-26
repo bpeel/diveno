@@ -49,6 +49,7 @@ fn show_error(message: &str) {
 }
 
 struct Context {
+    audio_context: web_sys::AudioContext,
     gl: Rc<glow::Context>,
     canvas: web_sys::HtmlCanvasElement,
     document: web_sys::Document,
@@ -85,7 +86,13 @@ impl Context {
 
         let gl = Rc::new(glow::Context::from_webgl1_context(context));
 
+        let Ok(audio_context) = web_sys::AudioContext::new()
+        else {
+            return Err("error creating audio context".to_string());
+        };
+
         Ok(Context {
+            audio_context,
             gl,
             canvas,
             document,
@@ -348,7 +355,7 @@ impl Loader {
             },
         };
 
-        let sounds = match Loader::load_sounds() {
+        let sounds = match Loader::load_sounds(&context) {
             Ok(s) => s,
             Err(e) => {
                 show_error(&e);
@@ -382,20 +389,35 @@ impl Loader {
         }
     }
 
-    fn load_sounds() -> Result<Vec<web_sys::HtmlAudioElement>, String> {
+    fn load_sounds(context: &Context) -> Result<Vec<Sound>, String> {
         let sound_files = &game::sound_queue::SOUND_FILES;
 
         let mut sounds = Vec::with_capacity(sound_files.len());
 
         for sound in sound_files.iter() {
-            match web_sys::HtmlAudioElement::new_with_src(
+            let Ok(elem) = web_sys::HtmlAudioElement::new_with_src(
                 &format!("data/{}", sound)
+            )
+            else {
+                return Err("Error creating audio element".to_string());
+            };
+
+            let Ok(track) = context.audio_context.create_media_element_source(
+                &elem,
+            )
+            else {
+                return Err("Error creating audio track".to_string());
+            };
+
+            if let Err(_) = track.connect_with_audio_node(
+                &context.audio_context.destination()
             ) {
-                Ok(audio) => sounds.push(audio),
-                Err(_) => {
-                    return Err("Error creating audio element".to_string());
-                },
+                return Err(
+                    "Error connecting track to audio context".to_string()
+                );
             }
+
+            sounds.push(Sound { elem, _track: track });
         }
 
         Ok(sounds)
@@ -407,10 +429,15 @@ struct SoundCallback {
     timestamp: i64,
 }
 
+struct Sound {
+    elem: web_sys::HtmlAudioElement,
+    _track: web_sys::MediaElementAudioSourceNode,
+}
+
 struct Diveno {
     context: Context,
     painter: GamePainter,
-    sounds: Vec<web_sys::HtmlAudioElement>,
+    sounds: Vec<Sound>,
     sound_queue: SoundQueue,
     logic: Logic,
 
@@ -431,7 +458,7 @@ impl Diveno {
     fn new(
         context: Context,
         painter: GamePainter,
-        sounds: Vec<web_sys::HtmlAudioElement>,
+        sounds: Vec<Sound>,
         logic: Logic
     ) -> Box<Diveno> {
         let mut diveno = Box::new(Diveno {
@@ -484,9 +511,9 @@ impl Diveno {
 
     fn flush_sounds(&mut self) {
         while let Some(sound) = self.sound_queue.next_ready_sound() {
-            let sound = &self.sounds[sound as usize];
+            let sound = &self.sounds[sound as usize].elem;
 
-            if sound.ready_state() > 0 {
+            if sound.ready_state() >= 2 {
                 sound.set_current_time(0.0);
                 let _ = sound.play();
             }
@@ -495,6 +522,12 @@ impl Diveno {
 
     fn update_next_sound(&mut self) {
         if let Some(delay) = self.sound_queue.next_delay() {
+            if self.context.audio_context.state()
+                == web_sys::AudioContextState::Suspended
+            {
+                let _ = self.context.audio_context.resume();
+            }
+
             let next_time = self.start_time.elapsed() + delay;
 
             if let Some(cb) = self.queued_sound_callback.as_ref() {
