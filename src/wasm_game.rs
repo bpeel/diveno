@@ -76,7 +76,9 @@ impl Context {
 
         let Some(context) = canvas.get_context_with_context_options(
             "webgl",
-            web_sys::WebGlContextAttributes::new().alpha(false),
+            web_sys::WebGlContextAttributes::new()
+                .alpha(false)
+                .depth(false),
         )
             .unwrap_or(None)
             .and_then(|c| c.dyn_into::<web_sys::WebGlRenderingContext>().ok())
