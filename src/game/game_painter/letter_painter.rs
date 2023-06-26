@@ -18,6 +18,7 @@ use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
 use super::super::{shaders, logic, timer, letter_texture};
+use letter_texture::LETTERS;
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Vector3, Perspective3};
@@ -42,6 +43,8 @@ const WAVE_LIFT_DELAY: i64 = 100;
 // The amount that a tile should rise up
 const WAVE_LIFT_DISTANCE: f32 = 0.2;
 
+const EMPTY_COLOR: [u8; 3] = [0; 3];
+
 #[repr(C)]
 struct Vertex {
     x: f32,
@@ -52,6 +55,8 @@ struct Vertex {
     ry: f32,
     // Rotation progress
     rp: f32,
+    // Color of the background of the tile
+    color: [u8; 3],
 }
 
 pub struct LetterPainter {
@@ -321,9 +326,22 @@ impl LetterPainter {
                 let wave_offset = wave_offset_for_column(wave_time, x);
 
                 for y in guess_num..logic::N_GUESSES {
-                    self.add_letter(0, x as f32, y as f32 + wave_offset, ' ');
+                    self.add_letter(
+                        EMPTY_COLOR,
+                        x as f32,
+                        y as f32 + wave_offset,
+                        ' '
+                    );
                 }
             }
+        }
+    }
+
+    fn color_for_result(result: logic::LetterResult) -> [u8; 3] {
+        match result {
+            logic::LetterResult::Correct => [0xe7, 0x00, 0x2a],
+            logic::LetterResult::WrongPosition => [0xff, 0xbd, 0x00],
+            logic::LetterResult::Wrong => [0x00, 0x77, 0xc7],
         }
     }
 
@@ -336,14 +354,8 @@ impl LetterPainter {
         for (x, letter) in guess.iter().enumerate() {
             let wave_offset = wave_offset_for_column(wave_time, x);
 
-            let color = match letter.result {
-                logic::LetterResult::Correct => 2,
-                logic::LetterResult::WrongPosition => 3,
-                logic::LetterResult::Wrong => 1,
-            };
-
             self.add_letter(
-                color,
+                LetterPainter::color_for_result(letter.result),
                 x as f32,
                 y as f32 + wave_offset,
                 letter.letter
@@ -358,26 +370,20 @@ impl LetterPainter {
         animation_time: i64,
     ) {
         for (x, letter) in guess.iter().enumerate() {
-            let color = match letter.result {
-                logic::LetterResult::Correct => 2,
-                logic::LetterResult::WrongPosition => 3,
-                logic::LetterResult::Wrong => 1,
-            };
-
             let rotation_progress =
                 ((animation_time - MILLIS_PER_LETTER * x as i64) as f32
                  / TURN_TIME as f32)
                 .clamp(0.0, 1.0);
 
             self.add_rotated_letter(
-                0,
+                EMPTY_COLOR,
                 x as f32,
                 y as f32,
                 rotation_progress,
                 letter.letter,
             );
             self.add_rotated_letter(
-                color,
+                LetterPainter::color_for_result(letter.result),
                 x as f32,
                 y as f32,
                 rotation_progress + 1.0,
@@ -403,7 +409,12 @@ impl LetterPainter {
             .unwrap_or(0.0);
 
         for (pos, ch) in logic.in_progress_guess().chars().enumerate() {
-            self.add_letter(0, pos as f32 + shake_offset, y as f32, ch);
+            self.add_letter(
+                EMPTY_COLOR,
+                pos as f32 + shake_offset,
+                y as f32,
+                ch
+            );
             added += 1;
         }
 
@@ -415,11 +426,21 @@ impl LetterPainter {
                     '.'
                 };
 
-                self.add_letter(0, index as f32 + shake_offset, y as f32, ch);
+                self.add_letter(
+                    EMPTY_COLOR,
+                    index as f32 + shake_offset,
+                    y as f32,
+                    ch
+                );
             }
         } else {
             for x in added..logic.word_length() {
-                self.add_letter(0, x as f32 + shake_offset, y as f32, '.');
+                self.add_letter(
+                    EMPTY_COLOR,
+                    x as f32 + shake_offset,
+                    y as f32,
+                    '.'
+                );
             }
         }
     }
@@ -465,22 +486,20 @@ impl LetterPainter {
 
     fn add_rotated_letter(
         &mut self,
-        color: usize,
+        color: [u8; 3],
         x: f32,
         y: f32,
         rotation_progress: f32,
         letter: char
     ) {
-        let letters = &letter_texture::COLORS[color].letters;
-
-        let Ok(letter_index) = letters.binary_search_by(|probe| {
+        let Ok(letter_index) = LETTERS.binary_search_by(|probe| {
             probe.ch.cmp(&letter)
         })
         else {
             return;
         };
 
-        let letter = &letters[letter_index];
+        let letter = &LETTERS[letter_index];
 
         self.vertices.push(Vertex {
             x,
@@ -489,6 +508,7 @@ impl LetterPainter {
             t: letter.t1,
             ry: y + 0.5,
             rp: rotation_progress,
+            color,
         });
         self.vertices.push(Vertex {
             x,
@@ -497,6 +517,7 @@ impl LetterPainter {
             t: letter.t2,
             ry: y + 0.5,
             rp: rotation_progress,
+            color,
         });
         self.vertices.push(Vertex {
             x: x + 1.0,
@@ -505,6 +526,7 @@ impl LetterPainter {
             t: letter.t1,
             ry: y + 0.5,
             rp: rotation_progress,
+            color,
         });
         self.vertices.push(Vertex {
             x: x + 1.0,
@@ -513,12 +535,13 @@ impl LetterPainter {
             t: letter.t2,
             ry: y + 0.5,
             rp: rotation_progress,
+            color,
         });
     }
 
     fn add_letter(
         &mut self,
-        color: usize,
+        color: [u8; 3],
         x: f32,
         y: f32,
         letter: char
@@ -542,6 +565,7 @@ fn create_array_object(
     };
 
     let mut array_object = ArrayObject::new(paint_data)?;
+    let mut offset = 0;
 
     array_object.set_attribute(
         shaders::POSITION_ATTRIB,
@@ -550,8 +574,9 @@ fn create_array_object(
         false, // normalized
         std::mem::size_of::<Vertex>() as i32,
         Rc::clone(&buffer),
-        0, // offset
+        offset,
     );
+    offset += std::mem::size_of::<f32>() as i32 * 2;
 
     array_object.set_attribute(
         shaders::TEX_COORD_ATTRIB,
@@ -560,8 +585,9 @@ fn create_array_object(
         true, // normalized
         std::mem::size_of::<Vertex>() as i32,
         Rc::clone(&buffer),
-        std::mem::size_of::<f32>() as i32 * 2,
+        offset,
     );
+    offset += std::mem::size_of::<u16>() as i32 * 2;
 
     array_object.set_attribute(
         rotation_attrib,
@@ -569,9 +595,19 @@ fn create_array_object(
         glow::FLOAT,
         false, // normalized
         std::mem::size_of::<Vertex>() as i32,
+        Rc::clone(&buffer),
+        offset,
+    );
+    offset += std::mem::size_of::<f32>() as i32 * 2;
+
+    array_object.set_attribute(
+        shaders::COLOR_ATTRIB,
+        3, // size
+        glow::UNSIGNED_BYTE,
+        true, // normalized
+        std::mem::size_of::<Vertex>() as i32,
         buffer,
-        std::mem::size_of::<f32>() as i32 * 2
-            + std::mem::size_of::<u16>() as i32 * 2,
+        offset,
     );
 
     Ok(array_object)

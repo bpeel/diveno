@@ -352,7 +352,7 @@ impl<'a> GuessIter<'a> {
 }
 
 fn is_valid_letter(letter: char) -> bool {
-    let letters = &letter_texture::COLORS[0].letters;
+    let letters = &letter_texture::LETTERS;
 
     letters.binary_search_by(|probe| probe.ch.cmp(&letter)).is_ok()
 }

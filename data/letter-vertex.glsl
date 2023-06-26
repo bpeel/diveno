@@ -26,8 +26,10 @@ uniform mat4 mvp;
 attribute vec2 position;
 attribute vec2 tex_coord_attrib;
 attribute vec2 rotation;
+attribute vec3 color_attrib;
 
 varying vec2 tex_coord;
+varying vec3 color;
 
 void
 main()
@@ -43,4 +45,5 @@ main()
         gl_Position = mvp * vec4(position.x, y, z, 1.0);
         tex_coord = tex_coord_attrib;
 
+        color = color_attrib;
 }
