@@ -590,7 +590,7 @@ impl Diveno {
                 },
             }
 
-            self.painter.handle_logic_event(&event);
+            self.painter.handle_logic_event(&self.logic, &event);
             self.sound_queue.handle_logic_event(&self.logic, &event);
         }
 

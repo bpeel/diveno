@@ -208,7 +208,7 @@ fn flush_logic_events(game_data: &mut GameData) {
             },
         }
 
-        game_data.game_painter.handle_logic_event(&event);
+        game_data.game_painter.handle_logic_event(&game_data.logic, &event);
         game_data.sound_queue.handle_logic_event(&game_data.logic, &event);
     }
 }

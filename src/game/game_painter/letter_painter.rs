@@ -231,7 +231,11 @@ impl LetterPainter {
         self.transform_dirty = true;
     }
 
-    pub fn handle_logic_event(&mut self, event: &logic::Event) {
+    pub fn handle_logic_event(
+        &mut self,
+        logic: &logic::Logic,
+        event: &logic::Event,
+    ) {
         match event {
             logic::Event::WordChanged => {
                 self.vertices_dirty = true;
