@@ -15,15 +15,18 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 mod letter_painter;
+mod score_painter;
 
 use std::rc::Rc;
 use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
+use score_painter::ScorePainter;
 use super::logic;
 use glow::HasContext;
 
 pub struct GamePainter {
     paint_data: Rc<PaintData>,
+    score_painter: ScorePainter,
     letter_painter: LetterPainter,
     width: u32,
     height: u32,
@@ -40,6 +43,7 @@ impl GamePainter {
 
         Ok(GamePainter {
             paint_data: Rc::clone(&paint_data),
+            score_painter: ScorePainter::new(Rc::clone(&paint_data))?,
             letter_painter: LetterPainter::new(paint_data)?,
             width: 1,
             height: 1,
@@ -62,7 +66,8 @@ impl GamePainter {
             gl.clear(glow::COLOR_BUFFER_BIT);
         }
 
-        self.letter_painter.paint(logic)
+        self.score_painter.paint(logic)
+            | self.letter_painter.paint(logic)
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -70,6 +75,7 @@ impl GamePainter {
         self.width = width;
         self.height = height;
 
+        self.score_painter.update_fb_size(width, height);
         self.letter_painter.update_fb_size(width, height);
     }
 
@@ -78,6 +84,7 @@ impl GamePainter {
         logic: &logic::Logic,
         event: &logic::Event,
     ) {
+        self.score_painter.handle_logic_event(logic, event);
         self.letter_painter.handle_logic_event(logic, event);
     }
 }

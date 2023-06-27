@@ -170,6 +170,7 @@ impl Drop for Program {
 
 pub struct Shaders {
     pub letter: Program,
+    pub score: Program,
 }
 
 struct ShaderFile {
@@ -177,7 +178,7 @@ struct ShaderFile {
     shader_type: u32,
 }
 
-const N_SHADER_FILES: usize = 2;
+const N_SHADER_FILES: usize = 4;
 
 static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
     ShaderFile {
@@ -186,6 +187,15 @@ static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
     },
     ShaderFile {
         name: "letter-fragment.glsl",
+        shader_type:
+        glow::FRAGMENT_SHADER
+    },
+    ShaderFile {
+        name: "score-vertex.glsl",
+        shader_type: glow::VERTEX_SHADER
+    },
+    ShaderFile {
+        name: "score-fragment.glsl",
         shader_type:
         glow::FRAGMENT_SHADER
     },
@@ -243,8 +253,14 @@ impl ShaderLoader {
             &shaders[0..2],
         )?;
 
+        let score = Program::new(
+            Rc::clone(&self.gl),
+            &shaders[2..4],
+        )?;
+
         Ok(Shaders {
-            letter
+            letter,
+            score,
         })
     }
 }
