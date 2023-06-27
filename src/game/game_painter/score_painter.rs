@@ -155,6 +155,7 @@ impl ScorePainter {
             logic::Event::GuessEntered => (),
             logic::Event::WrongGuessEntered => (),
             logic::Event::Solved => (),
+            logic::Event::ScoreChanged(_) => self.vertices_dirty = true,
         }
     }
 

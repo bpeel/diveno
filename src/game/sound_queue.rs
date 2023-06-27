@@ -109,6 +109,7 @@ impl SoundQueue {
                 self.queue_sound(Sound::BadWord, 0);
             },
             logic::Event::Solved => self.queue_solved(logic),
+            logic::Event::ScoreChanged(_) => (),
         }
     }
 

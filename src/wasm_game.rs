@@ -585,7 +585,8 @@ impl Diveno {
                 game::logic::Event::GuessEntered |
                 game::logic::Event::WrongGuessEntered |
                 game::logic::Event::WordChanged |
-                game::logic::Event::GridChanged => {
+                game::logic::Event::GridChanged |
+                game::logic::Event::ScoreChanged(_) => {
                     redraw_queued = true;
                 },
             }

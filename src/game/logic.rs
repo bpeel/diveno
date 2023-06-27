@@ -29,6 +29,7 @@ pub enum Event {
     GuessEntered,
     WrongGuessEntered,
     Solved,
+    ScoreChanged(Team),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -51,6 +52,7 @@ pub struct Letter {
     pub result: LetterResult,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum Team {
     Left,
     Right,

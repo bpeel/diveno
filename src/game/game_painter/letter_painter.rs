@@ -279,6 +279,7 @@ impl LetterPainter {
                 self.wave_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
             },
+            logic::Event::ScoreChanged(_) => (),
         }
     }
 

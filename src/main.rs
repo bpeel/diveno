@@ -203,7 +203,8 @@ fn flush_logic_events(game_data: &mut GameData) {
             logic::Event::GuessEntered |
             logic::Event::WrongGuessEntered |
             logic::Event::WordChanged |
-            logic::Event::GridChanged => {
+            logic::Event::GridChanged |
+            logic::Event::ScoreChanged(_) => {
                 game_data.redraw_queued = true;
             },
         }
