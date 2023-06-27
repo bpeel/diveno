@@ -283,8 +283,11 @@ impl LetterPainter {
     }
 
     fn update_transform(&mut self, logic: &logic::Logic) {
-        let smallest_axis = std::cmp::min(self.width, self.height);
-        // Ten tiles should fit along the smallest axis
+        // We want to fit ten tiles along either the height or half of
+        // the width, whichever is smaller. We only use half of the
+        // width so that there will be a quarter of the space on
+        // either side in order to draw the scores.
+        let smallest_axis = (self.width / 2).clamp(1, self.height);
         const TILE_SIZE: f32 = 2.0 / 10.0;
         const FOV: f32 = PI / 4.0;
 
