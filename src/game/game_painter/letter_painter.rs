@@ -43,6 +43,10 @@ const WAVE_LIFT_DELAY: i64 = 100;
 // The amount that a tile should rise up
 const WAVE_LIFT_DISTANCE: f32 = 0.2;
 
+// Time to wait after the last guess reveal animation before revealing
+// the answer
+const ANSWER_DELAY: i64 = 1000;
+
 const EMPTY_COLOR: [u8; 3] = [0; 3];
 
 #[repr(C)]
@@ -63,6 +67,7 @@ struct AnimationTimes {
     reveal_time: Option<i64>,
     shake_time: Option<i64>,
     wave_time: Option<i64>,
+    answer_time: Option<i64>,
 }
 
 impl AnimationTimes {
@@ -70,6 +75,7 @@ impl AnimationTimes {
         self.reveal_time.is_some()
             || self.shake_time.is_some()
             || self.wave_time.is_some()
+            || self.answer_time.is_some()
     }
 }
 
@@ -89,6 +95,7 @@ pub struct LetterPainter {
     reveal_start_time: Option<timer::Timer>,
     shake_start_time: Option<timer::Timer>,
     wave_start_time: Option<timer::Timer>,
+    answer_start_time: Option<timer::Timer>,
 }
 
 impl LetterPainter {
@@ -122,6 +129,7 @@ impl LetterPainter {
             reveal_start_time: None,
             shake_start_time: None,
             wave_start_time: None,
+            answer_start_time: None,
         })
     }
 
@@ -172,10 +180,22 @@ impl LetterPainter {
             }
         });
 
+        let answer_time = self.answer_start_time.and_then(|start_time| {
+            let millis = start_time.elapsed();
+
+            if millis < total_reveal_time * 2 + ANSWER_DELAY {
+                Some(millis - total_reveal_time - ANSWER_DELAY)
+            } else {
+                self.answer_start_time = None;
+                None
+            }
+        });
+
         AnimationTimes {
             reveal_time,
             shake_time,
             wave_time,
+            answer_time,
         }
     }
 
@@ -244,6 +264,11 @@ impl LetterPainter {
             logic::Event::GridChanged => self.vertices_dirty = true,
             logic::Event::GuessEntered => {
                 self.reveal_start_time = Some(timer::Timer::new());
+
+                if logic.n_guesses() >= logic::N_GUESSES && !logic.is_solved() {
+                    self.answer_start_time = self.reveal_start_time;
+                }
+
                 self.vertices_dirty = true;
             },
             logic::Event::WrongGuessEntered => {
@@ -367,6 +392,8 @@ impl LetterPainter {
                     );
                 }
             }
+        } else if !logic.is_solved() {
+            self.add_answer(logic, animation_times.answer_time);
         }
     }
 
@@ -475,6 +502,41 @@ impl LetterPainter {
                     '.'
                 );
             }
+        }
+    }
+
+    fn add_answer(&mut self, logic: &logic::Logic, answer_time: Option<i64>) {
+        match answer_time {
+            Some(answer_time) => {
+                if answer_time < 0 {
+                    return;
+                }
+
+                for (x, letter) in logic.word().chars().enumerate() {
+                    let rotation_progress =
+                        1.0
+                        - ((answer_time - MILLIS_PER_LETTER * x as i64) as f32
+                           / TURN_TIME as f32).clamp(0.0, 1.0);
+
+                    self.add_rotated_letter(
+                        EMPTY_COLOR,
+                        x as f32,
+                        logic::N_GUESSES as f32,
+                        rotation_progress,
+                        letter
+                    );
+                }
+            },
+            None => {
+                for (x, letter) in logic.word().chars().enumerate() {
+                    self.add_letter(
+                        EMPTY_COLOR,
+                        x as f32,
+                        logic::N_GUESSES as f32,
+                        letter
+                    );
+                }
+            },
         }
     }
 
