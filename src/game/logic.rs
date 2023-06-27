@@ -51,6 +51,13 @@ pub struct Letter {
     pub result: LetterResult,
 }
 
+pub enum Team {
+    Left,
+    Right,
+}
+
+pub const N_TEAMS: usize = 2;
+
 static HATABLE_LETTERS: [(char, char); 12] = [
     ('C', 'Ĉ'),
     ('G', 'Ĝ'),
@@ -74,6 +81,7 @@ pub struct Logic {
     in_progress_guess: String,
     guesses: [Vec<Letter>; N_GUESSES],
     n_guesses: usize,
+    scores: [u32; N_TEAMS],
     event_queue: VecDeque<Event>,
     letter_counter: LetterCounter,
     // Bitmask of letters from the word that the player can see,
@@ -94,6 +102,7 @@ impl Logic {
             in_progress_guess: String::new(),
             guesses: Default::default(),
             n_guesses: 0,
+            scores: Default::default(),
             event_queue: VecDeque::new(),
             letter_counter: LetterCounter::new(),
             visible_letters: 1,
@@ -332,6 +341,10 @@ impl Logic {
 
     pub fn is_solved(&self) -> bool {
         self.is_solved
+    }
+
+    pub fn team_score(&self, team: Team) -> u32 {
+        self.scores[team as usize]
     }
 }
 
