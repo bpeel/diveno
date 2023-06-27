@@ -52,7 +52,7 @@ pub struct Letter {
     pub result: LetterResult,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Team {
     Left,
     Right,
@@ -84,6 +84,7 @@ pub struct Logic {
     guesses: [Vec<Letter>; N_GUESSES],
     n_guesses: usize,
     scores: [u32; N_TEAMS],
+    current_team: Team,
     event_queue: VecDeque<Event>,
     letter_counter: LetterCounter,
     // Bitmask of letters from the word that the player can see,
@@ -105,6 +106,7 @@ impl Logic {
             guesses: Default::default(),
             n_guesses: 0,
             scores: Default::default(),
+            current_team: Team::Left,
             event_queue: VecDeque::new(),
             letter_counter: LetterCounter::new(),
             visible_letters: 1,
@@ -321,6 +323,8 @@ impl Logic {
         self.queue_event_once(Event::GuessEntered);
 
         if self.is_solved {
+            self.scores[self.current_team as usize] += 50;
+            self.queue_event_once(Event::ScoreChanged(self.current_team));
             self.queue_event_once(Event::Solved);
         }
     }
