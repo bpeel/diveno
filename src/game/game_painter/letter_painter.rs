@@ -59,6 +59,20 @@ struct Vertex {
     color: [u8; 3],
 }
 
+struct AnimationTimes {
+    reveal_time: Option<i64>,
+    shake_time: Option<i64>,
+    wave_time: Option<i64>,
+}
+
+impl AnimationTimes {
+    fn is_animating(&self) -> bool {
+        self.reveal_time.is_some()
+            || self.shake_time.is_some()
+            || self.wave_time.is_some()
+    }
+}
+
 pub struct LetterPainter {
     buffer: Rc<Buffer>,
     array_object: ArrayObject,
@@ -111,7 +125,10 @@ impl LetterPainter {
         })
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+    fn update_animation_times(
+        &mut self,
+        logic: &logic::Logic,
+    ) -> AnimationTimes {
         let total_reveal_time =
             (logic.word_length() as i64 - 1)
             * MILLIS_PER_LETTER
@@ -155,13 +172,23 @@ impl LetterPainter {
             }
         });
 
+        AnimationTimes {
+            reveal_time,
+            shake_time,
+            wave_time,
+        }
+    }
+
+    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+        let animation_times = self.update_animation_times(logic);
+
         if self.transform_dirty {
             self.update_transform(logic);
             self.transform_dirty = false;
         }
 
         if self.vertices_dirty {
-            self.update_vertices(logic, reveal_time, shake_time, wave_time);
+            self.update_vertices(logic, &animation_times);
             self.vertices_dirty = false;
         }
 
@@ -190,10 +217,7 @@ impl LetterPainter {
             gl.disable(glow::BLEND);
         }
 
-        if reveal_time.is_some()
-            || shake_time.is_some()
-            || wave_time.is_some()
-        {
+        if animation_times.is_animating() {
             self.vertices_dirty = true;
             true
         } else {
@@ -280,25 +304,27 @@ impl LetterPainter {
     fn fill_vertices_array(
         &mut self,
         logic: &logic::Logic,
-        reveal_time: Option<i64>,
-        shake_time: Option<i64>,
-        wave_time: Option<i64>,
+        animation_times: &AnimationTimes,
     ) {
         self.vertices.clear();
 
         let mut guess_num = 0;
 
         for guess in logic.guesses() {
-            if reveal_time.is_some()
+            if animation_times.reveal_time.is_some()
                 && guess_num >= logic.n_guesses() - 1
             {
                 self.add_animated_guess(
                     guess,
                     guess_num as u32,
-                    reveal_time.unwrap()
+                    animation_times.reveal_time.unwrap()
                 );
             } else {
-                self.add_guess(guess, guess_num as u32, wave_time);
+                self.add_guess(
+                    guess,
+                    guess_num as u32,
+                    animation_times.wave_time
+                );
             }
 
             guess_num += 1;
@@ -306,7 +332,7 @@ impl LetterPainter {
 
         if guess_num < logic::N_GUESSES {
             if !logic.is_finished() {
-                let visible_letters = if reveal_time.is_some() {
+                let visible_letters = if animation_times.reveal_time.is_some() {
                     0
                 } else {
                     logic.visible_letters()
@@ -316,14 +342,17 @@ impl LetterPainter {
                     logic,
                     guess_num as u32,
                     visible_letters,
-                    shake_time,
+                    animation_times.shake_time,
                 );
 
                 guess_num += 1;
             }
 
             for x in 0..logic.word_length() {
-                let wave_offset = wave_offset_for_column(wave_time, x);
+                let wave_offset = wave_offset_for_column(
+                    animation_times.wave_time,
+                    x
+                );
 
                 for y in guess_num..logic::N_GUESSES {
                     self.add_letter(
@@ -448,11 +477,9 @@ impl LetterPainter {
     fn update_vertices(
         &mut self,
         logic: &logic::Logic,
-        reveal_time: Option<i64>,
-        shake_time: Option<i64>,
-        wave_time: Option<i64>,
+        animation_times: &AnimationTimes,
     ) {
-        self.fill_vertices_array(logic, reveal_time, shake_time, wave_time);
+        self.fill_vertices_array(logic, animation_times);
 
         let n_quads = self.vertices.len() as u32 / 4;
 
