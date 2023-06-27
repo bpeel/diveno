@@ -329,6 +329,10 @@ impl Logic {
     pub fn is_finished(&self) -> bool {
         self.is_solved || self.n_guesses >= N_GUESSES
     }
+
+    pub fn is_solved(&self) -> bool {
+        self.is_solved
+    }
 }
 
 pub struct GuessIter<'a> {
