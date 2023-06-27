@@ -201,9 +201,9 @@ impl ScorePainter {
             top - FRAME_WIDTH * y_scale,
             right,
             bottom + FRAME_WIDTH * y_scale,
-            FRAME_TEX_LEFT,
+            u16::MAX - FRAME_TEX_WIDTH,
             u16::MAX / 2,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH,
+            u16::MAX,
             u16::MAX / 2,
         );
         // Top side
@@ -224,9 +224,9 @@ impl ScorePainter {
             right - FRAME_WIDTH,
             bottom,
             FRAME_TEX_LEFT + FRAME_TEX_WIDTH * 2,
-            0,
+            u16::MAX - FRAME_TEX_HEIGHT,
             FRAME_TEX_LEFT + FRAME_TEX_WIDTH * 2,
-            FRAME_TEX_HEIGHT,
+            u16::MAX,
         );
 
         // Top-left corner
