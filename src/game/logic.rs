@@ -268,6 +268,14 @@ impl Logic {
             return;
         }
 
+        if self.in_progress_guess.chars().count() != self.word_length
+            || !self.dictionary.contains(&self.in_progress_guess)
+            || self.guess_already_tried(&self.in_progress_guess)
+        {
+            self.queue_event_once(Event::WrongGuessEntered);
+            return;
+        }
+
         self.letter_counter.clear();
 
         let guess = &mut self.guesses[self.n_guesses];
@@ -289,13 +297,6 @@ impl Logic {
                     Letter { letter, result }
                 })
         );
-
-        if guess.len() != self.word_length
-            || !self.dictionary.contains(&self.in_progress_guess)
-        {
-            self.queue_event_once(Event::WrongGuessEntered);
-            return;
-        }
 
         // Add all of the correct guesses as visible letters
         for (index, &Letter { result, .. }) in guess.iter().enumerate() {
@@ -327,6 +328,17 @@ impl Logic {
             self.queue_event_once(Event::ScoreChanged(self.current_team));
             self.queue_event_once(Event::Solved);
         }
+    }
+
+    fn guess_matches_word(guess: &[Letter], word: &str) -> bool {
+        guess.iter()
+            .map(|letter| letter.letter)
+            .zip(word.chars())
+            .all(|(a, b)| a == b)
+    }
+
+    fn guess_already_tried(&self, word: &str) -> bool {
+        self.guesses().any(|guess| Logic::guess_matches_word(guess, word))
     }
 
     pub fn visible_letters(&self) -> u32 {
