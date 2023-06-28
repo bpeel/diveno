@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic};
+use super::super::{shaders, logic, timer};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 
@@ -66,12 +66,20 @@ const DIGIT_HEIGHT: f32 = DIGIT_WIDTH
 const GAP_TEX_S: u16 = (963 * u16::MAX as u32 / 1024) as u16;
 const GAP_TEX_T: u16 = u16::MAX / 2;
 
+// Milliseconds per unit change when animating the score
+const SCORE_CHANGE_TIME: i64 = 30;
+
 #[repr(C)]
 struct Vertex {
     x: f32,
     y: f32,
     s: u16,
     t: u16,
+}
+
+struct AnimatedScore {
+    start_score: u32,
+    start_time: timer::Timer,
 }
 
 pub struct ScorePainter {
@@ -83,6 +91,8 @@ pub struct ScorePainter {
     vertices_dirty: bool,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<Vertex>,
+    animated_scores: [Option<AnimatedScore>; logic::N_TEAMS],
+    last_scores: [u32; logic::N_TEAMS],
 }
 
 impl ScorePainter {
@@ -101,6 +111,8 @@ impl ScorePainter {
             height: 1,
             vertices_dirty: true,
             vertices: Vec::with_capacity(TOTAL_N_QUADS * 4),
+            animated_scores: Default::default(),
+            last_scores: Default::default(),
         })
     }
 
@@ -135,7 +147,13 @@ impl ScorePainter {
             gl.disable(glow::BLEND);
         }
 
-        false
+        // Redraw again if any of the scores are animated
+        if self.animated_scores.iter().any(|s| s.is_some()) {
+            self.vertices_dirty = true;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -155,8 +173,54 @@ impl ScorePainter {
             logic::Event::GuessEntered => (),
             logic::Event::WrongGuessEntered => (),
             logic::Event::Solved => (),
-            logic::Event::ScoreChanged(_) => self.vertices_dirty = true,
+            logic::Event::ScoreChanged(team) => {
+                self.animate_score_change(*team);
+            },
         }
+    }
+
+    fn animate_score_change(&mut self, team: logic::Team) {
+        self.animated_scores[team as usize] = Some(AnimatedScore {
+            start_score: self.last_scores[team as usize],
+            start_time: timer::Timer::new(),
+        });
+
+        self.vertices_dirty = true;
+    }
+
+    fn update_animated_score(
+        &mut self,
+        logic: &logic::Logic,
+        team: logic::Team
+    ) -> u32 {
+        let target_score = logic.team_score(team);
+
+        let paint_score = match self.animated_scores[team as usize] {
+            Some(ref animated_score) => {
+                let score_diff = animated_score.start_score
+                    .abs_diff(target_score) as i64;
+                let total_time = score_diff * SCORE_CHANGE_TIME;
+                let elapsed = animated_score.start_time.elapsed();
+
+                if elapsed >= total_time {
+                    self.animated_scores[team as usize] = None;
+                    target_score
+                } else {
+                    (animated_score.start_score as i64
+                     + (target_score as i64 - animated_score.start_score as i64)
+                     * elapsed
+                     / total_time)
+                        as u32
+                }
+            },
+            None => {
+                target_score
+            }
+        };
+
+        self.last_scores[team as usize] = paint_score;
+
+        paint_score
     }
 
     fn add_quad(
@@ -375,11 +439,11 @@ impl ScorePainter {
     fn fill_vertices_array(&mut self, logic: &logic::Logic) {
         self.vertices.clear();
 
-        self.add_scoreboard(-1.0, logic.team_score(logic::Team::Left));
-        self.add_scoreboard(
-            1.0 - SCORE_WIDTH,
-            logic.team_score(logic::Team::Right)
-        );
+        let left_score = self.update_animated_score(logic, logic::Team::Left);
+        self.add_scoreboard(-1.0, left_score);
+
+        let right_score = self.update_animated_score(logic, logic::Team::Right);
+        self.add_scoreboard(1.0 - SCORE_WIDTH, right_score);
 
         assert_eq!(self.vertices.len(), TOTAL_N_QUADS * 4);
     }
