@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic, timer};
+use super::super::{shaders, logic, timer, timing};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 
@@ -79,6 +79,9 @@ struct Vertex {
 
 struct AnimatedScore {
     start_score: u32,
+    // Delay before starting to animate the score. This is to avoid
+    // animating the score change before the reveal animation starts.
+    delay: i64,
     start_time: timer::Timer,
 }
 
@@ -164,7 +167,7 @@ impl ScorePainter {
 
     pub fn handle_logic_event(
         &mut self,
-        _logic: &logic::Logic,
+        logic: &logic::Logic,
         event: &logic::Event,
     ) {
         match event {
@@ -172,20 +175,40 @@ impl ScorePainter {
             logic::Event::GridChanged => (),
             logic::Event::GuessEntered => (),
             logic::Event::WrongGuessEntered => (),
-            logic::Event::Solved => (),
+            logic::Event::Solved => {
+                self.animate_solved_score_change(logic);
+            },
             logic::Event::ScoreChanged(team) => {
-                self.animate_score_change(*team);
+                self.animate_score_change(*team, 0);
             },
         }
     }
 
-    fn animate_score_change(&mut self, team: logic::Team) {
-        self.animated_scores[team as usize] = Some(AnimatedScore {
-            start_score: self.last_scores[team as usize],
-            start_time: timer::Timer::new(),
-        });
+    fn animate_solved_score_change(&mut self, logic: &logic::Logic) {
+        self.animate_score_change(
+            logic.current_team(),
+            timing::MILLIS_PER_LETTER * logic.word_length() as i64,
+        );
+    }
 
-        self.vertices_dirty = true;
+    fn animate_score_change(&mut self, team: logic::Team, delay: i64) {
+        let slot = &mut self.animated_scores[team as usize];
+
+        match slot.as_mut() {
+            None => {
+                *slot = Some(AnimatedScore {
+                    start_score: self.last_scores[team as usize],
+                    start_time: timer::Timer::new(),
+                    delay,
+                });
+
+                self.vertices_dirty = true;
+            },
+            Some(animated_score) => {
+                let delay = delay + animated_score.start_time.elapsed();
+                animated_score.delay = animated_score.delay.max(delay);
+            },
+        }
     }
 
     fn update_animated_score(
@@ -200,7 +223,9 @@ impl ScorePainter {
                 let score_diff = animated_score.start_score
                     .abs_diff(target_score) as i64;
                 let total_time = score_diff * SCORE_CHANGE_TIME;
-                let elapsed = animated_score.start_time.elapsed();
+                let elapsed = (animated_score.start_time.elapsed()
+                               - animated_score.delay)
+                    .max(0);
 
                 if elapsed >= total_time {
                     self.animated_scores[team as usize] = None;
