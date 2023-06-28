@@ -47,7 +47,7 @@ const FRAME_TEX_WIDTH: u16 = (25u32 * 65535 / TEX_WIDTH) as u16;
 // Height of the frame in texture coordinates
 const FRAME_TEX_HEIGHT: u16 = (25u32 * 65535 / TEX_HEIGHT) as u16;
 // Texture coordinate of the left side of the frame
-const FRAME_TEX_LEFT: u16 = (902u32 * 65535 / TEX_WIDTH) as u16;
+const FRAME_TEX_LEFT: u16 = ((TEX_WIDTH - 100) * 65535 / TEX_WIDTH) as u16;
 // Total width of all the digits in texture coordinates
 const DIGITS_TEX_WIDTH: u16 = 56867;
 
