@@ -24,3 +24,15 @@ Then you need to run a local webserver pointing to the repository directory. One
 pip3 install twisted
 python3 -m twisted web --path="$PWD"
 ```
+
+## Keys
+
+The game is meant to be played with a host who makes sure the rules are followed. This means the program is more just a tool to host the game and it doesn’t enforce the rules. The host can be lenient and let teams off for simple mistakes. To manage the game the host needs to remember the following keys:
+
+| Key | Action |
+| --- | ------ |
+| Any letter key | Add a letter to the current guess. You can type an X to add a hat to the previous letter. On the website version, if you have a dead key in your keyboard layout you can use that to type a hat too. It doesn’t work in the native SDL version though. |
+| Enter | Enter the current guess. If it’s not a word in the dictionary it will be rejected. |
+| Backspace | Remove the last letter in the current guess. |
+| Space | Switch teams. When a word is solved the points will be added to the current team. |
+| Home | Pick a new word and reset the word grid. |
