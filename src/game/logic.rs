@@ -30,6 +30,7 @@ pub enum Event {
     WrongGuessEntered,
     Solved,
     ScoreChanged(Team),
+    CurrentTeamChanged,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]

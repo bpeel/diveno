@@ -110,6 +110,7 @@ impl SoundQueue {
             },
             logic::Event::Solved => self.queue_solved(logic),
             logic::Event::ScoreChanged(_) => (),
+            logic::Event::CurrentTeamChanged => (),
         }
     }
 

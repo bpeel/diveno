@@ -195,6 +195,10 @@ impl ScorePainter {
                 self.animate_score_change(*team, 0);
                 true
             },
+            logic::Event::CurrentTeamChanged => {
+                self.vertices_dirty = true;
+                true
+            },
         }
     }
 

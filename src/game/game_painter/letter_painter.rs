@@ -288,6 +288,7 @@ impl LetterPainter {
                 true
             },
             logic::Event::ScoreChanged(_) => false,
+            logic::Event::CurrentTeamChanged => false,
         }
     }
 
