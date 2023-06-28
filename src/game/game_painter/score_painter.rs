@@ -27,8 +27,12 @@ const N_DIGITS: usize = 3;
 const N_FRAME_QUADS: usize = 8;
 // Number of quads needed to draw the inner gap
 const N_INNER_GAP_QUADS: usize = 4;
+// Number of quads needed to draw the bar to show the current team
+const N_BAR_QUADS: usize = 1;
 // Total number of quads to draw the two score boards
-const TOTAL_N_QUADS: usize = (N_DIGITS + N_FRAME_QUADS + N_INNER_GAP_QUADS) * 2;
+const TOTAL_N_QUADS: usize =
+    (N_DIGITS + N_FRAME_QUADS + N_INNER_GAP_QUADS) * 2
+    + N_BAR_QUADS;
 
 // The total width allocated to the score
 const SCORE_WIDTH: f32 = 2.0 / 4.0;
@@ -70,6 +74,12 @@ const GAP_TEX_T: u16 = u16::MAX / 2;
 
 // Milliseconds per unit change when animating the score
 const SCORE_CHANGE_TIME: i64 = 30;
+
+// Texture coordinates of the bar to show the current team
+const BAR_TEX_S1: u16 = (902 * 65535 / TEX_WIDTH) as u16;
+const BAR_TEX_S2: u16 = BAR_TEX_S1 + (17 * 65535 / TEX_WIDTH) as u16;
+// Height of the bar
+const BAR_HEIGHT: f32 = SCORE_WIDTH / 10.0;
 
 #[repr(C)]
 struct Vertex {
@@ -248,6 +258,23 @@ impl ScorePainter {
         self.last_scores[team as usize] = paint_score;
 
         paint_score
+    }
+
+    fn add_quad_rotated_tex(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        s1: u16,
+        t1: u16,
+        s2: u16,
+        t2: u16,
+    ) {
+        self.vertices.push(Vertex { x: x1, y: y1, s: s2, t: t1, });
+        self.vertices.push(Vertex { x: x1, y: y2, s: s1, t: t1, });
+        self.vertices.push(Vertex { x: x2, y: y1, s: s2, t: t2, });
+        self.vertices.push(Vertex { x: x2, y: y2, s: s1, t: t2, });
     }
 
     fn add_quad(
@@ -463,6 +490,32 @@ impl ScorePainter {
         self.add_digits(x, score);
     }
 
+    fn add_current_team(&mut self, logic: &logic::Logic) {
+        let x = match logic.current_team() {
+            logic::Team::Left => -1.0,
+            logic::Team::Right => 1.0 - SCORE_WIDTH,
+        };
+
+        let y_scale = self.width as f32 / self.height as f32;
+
+        let y = (-DIGIT_HEIGHT / 2.0
+                 - INNER_GAP_SIZE
+                 - FRAME_WIDTH
+                 - OUTER_GAP_SIZE)
+            * y_scale;
+
+        self.add_quad_rotated_tex(
+            x + OUTER_GAP_SIZE,
+            y,
+            x + SCORE_WIDTH - OUTER_GAP_SIZE,
+            y - BAR_HEIGHT * y_scale,
+            BAR_TEX_S1,
+            0,
+            BAR_TEX_S2,
+            65535,
+        );
+    }
+
     fn fill_vertices_array(&mut self, logic: &logic::Logic) {
         self.vertices.clear();
 
@@ -471,6 +524,8 @@ impl ScorePainter {
 
         let right_score = self.update_animated_score(logic, logic::Team::Right);
         self.add_scoreboard(1.0 - SCORE_WIDTH, right_score);
+
+        self.add_current_team(logic);
 
         assert_eq!(self.vertices.len(), TOTAL_N_QUADS * 4);
     }
