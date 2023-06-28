@@ -8,6 +8,10 @@ name = "create-tile-texture"
 path = "src/create_tile_texture.rs"
 
 [[bin]]
+name = "create-frame-image"
+path = "src/create_frame_image.rs"
+
+[[bin]]
 name = "make-word-list"
 path = "src/make_word_list.rs"
 
