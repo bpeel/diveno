@@ -42,10 +42,12 @@ const INNER_GAP_SIZE: f32 = SCORE_WIDTH / 16.0;
 const TEX_WIDTH: u32 = 1024;
 const TEX_HEIGHT: u32 = 128;
 
+// Width of the frame in pixels in the image
+const FRAME_PIXEL_WIDTH: u32 = 40;
 // Width of the frame in texture coordinates
-const FRAME_TEX_WIDTH: u16 = (25u32 * 65535 / TEX_WIDTH) as u16;
+const FRAME_TEX_WIDTH: u16 = (FRAME_PIXEL_WIDTH * 65535 / TEX_WIDTH) as u16;
 // Height of the frame in texture coordinates
-const FRAME_TEX_HEIGHT: u16 = (25u32 * 65535 / TEX_HEIGHT) as u16;
+const FRAME_TEX_HEIGHT: u16 = (FRAME_PIXEL_WIDTH * 65535 / TEX_HEIGHT) as u16;
 // Texture coordinate of the left side of the frame
 const FRAME_TEX_LEFT: u16 = ((TEX_WIDTH - 100) * 65535 / TEX_WIDTH) as u16;
 // Total width of all the digits in texture coordinates
@@ -63,7 +65,7 @@ const DIGIT_HEIGHT: f32 = DIGIT_WIDTH
        * TEX_WIDTH as f32);
 
 // Tex coords of a known black texel
-const GAP_TEX_S: u16 = (963 * u16::MAX as u32 / 1024) as u16;
+const GAP_TEX_S: u16 = ((65535 + FRAME_TEX_LEFT as u32) / 2) as u16;
 const GAP_TEX_T: u16 = u16::MAX / 2;
 
 // Milliseconds per unit change when animating the score
@@ -301,9 +303,9 @@ impl ScorePainter {
             top,
             right - FRAME_WIDTH,
             top - FRAME_WIDTH * y_scale,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH * 2,
+            GAP_TEX_S,
             0,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH * 2,
+            GAP_TEX_S,
             FRAME_TEX_HEIGHT,
         );
         // Bottom side
@@ -312,9 +314,9 @@ impl ScorePainter {
             bottom + FRAME_WIDTH * y_scale,
             right - FRAME_WIDTH,
             bottom,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH * 2,
+            GAP_TEX_S,
             u16::MAX - FRAME_TEX_HEIGHT,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH * 2,
+            GAP_TEX_S,
             u16::MAX,
         );
 

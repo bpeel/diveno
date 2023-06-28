@@ -20,7 +20,7 @@ use std::process::ExitCode;
 
 const IMAGE_WIDTH: u32 = 100;
 const IMAGE_HEIGHT: u32 = 128;
-const FRAME_WIDTH: f64 = 25.0;
+const FRAME_WIDTH: f64 = 40.0;
 const COLOR_STOP_POINT: f64 = 0.25;
 
 const INNER_COLOR: [f64; 3] = [0.153, 0.153, 0.153];
