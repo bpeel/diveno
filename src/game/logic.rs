@@ -45,6 +45,7 @@ pub enum Key {
     Dead,
     Backspace,
     Enter,
+    Space,
     Letter(char),
 }
 
@@ -194,6 +195,7 @@ impl Logic {
                 self.dead_key_queued = false;
                 self.remove_letter();
             },
+            Key::Space => self.change_current_team(),
         }
     }
 
@@ -248,6 +250,16 @@ impl Logic {
                 self.queue_event_once(Event::GridChanged);
             }
         }
+    }
+
+    fn change_current_team(&mut self) {
+        let next_team = match self.current_team {
+            Team::Left => Team::Right,
+            Team::Right => Team::Left,
+        };
+
+        self.current_team = next_team;
+        self.queue_event_once(Event::CurrentTeamChanged);
     }
 
     pub fn in_progress_guess(&self) -> &str {

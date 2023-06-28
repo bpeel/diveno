@@ -648,6 +648,7 @@ impl Diveno {
         let key = match event.key().as_str() {
             "Enter" => game::logic::Key::Enter,
             "Backspace" => game::logic::Key::Backspace,
+            " " => game::logic::Key::Space,
             "Dead" => game::logic::Key::Dead,
             s => {
                 let mut chars = s.chars();
