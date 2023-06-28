@@ -364,6 +364,10 @@ impl Logic {
     pub fn team_score(&self, team: Team) -> u32 {
         self.scores[team as usize]
     }
+
+    pub fn current_team(&self) -> Team {
+        self.current_team
+    }
 }
 
 pub struct GuessIter<'a> {
