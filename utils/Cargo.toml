@@ -22,4 +22,4 @@ path = "src/dump_word_list.rs"
 [dependencies.cairo-rs]
 version = "0.17.10"
 default-features = false
-features = ["png"]
+features = ["png", "svg"]

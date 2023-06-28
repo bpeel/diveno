@@ -224,6 +224,39 @@ fn write_surface<S: AsRef<cairo::Surface>, P: AsRef<std::path::Path>>(
     }
 }
 
+fn generate_png_image<P: AsRef<std::path::Path>>(
+    output_filename: P,
+) -> Result<(), String> {
+    match generate_image() {
+        Ok(surface) => write_surface(surface, output_filename),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+fn generate_svg_image_inner<P: AsRef<std::path::Path>>(
+    output_filename: P,
+) -> Result<(), cairo::Error> {
+    let surface = cairo::SvgSurface::new(
+        IMAGE_WIDTH as f64,
+        IMAGE_HEIGHT as f64,
+        Some(output_filename),
+    )?;
+
+    let cr = cairo::Context::new(&surface)?;
+
+    draw_frame(&cr)?;
+
+    surface.flush();
+
+    Ok(())
+}
+
+fn generate_svg_image<P: AsRef<std::path::Path>>(
+    output_filename: P,
+) -> Result<(), String> {
+    generate_svg_image_inner(output_filename).map_err(|e| e.to_string())
+}
+
 pub fn main() -> ExitCode {
     let mut args = std::env::args_os();
 
@@ -236,18 +269,17 @@ pub fn main() -> ExitCode {
 
     let output_filename = args.nth(1).unwrap();
 
-    let surface = match generate_image() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("{}", e);
-            return ExitCode::FAILURE;
-        },
-    };
-
-    if let Err(e) = write_surface(&surface, &output_filename) {
-        eprintln!("{}: {}", output_filename.to_string_lossy(), e);
-        ExitCode::FAILURE
+    match if output_filename.to_string_lossy().ends_with(".svg") {
+        generate_svg_image(&output_filename)
     } else {
-        ExitCode::SUCCESS
+        generate_png_image(&output_filename)
+    } {
+        Err(e) => {
+            eprintln!("{}: {}", output_filename.to_string_lossy(), e);
+            ExitCode::FAILURE
+        },
+        Ok(()) => {
+            ExitCode::SUCCESS
+        },
     }
 }
