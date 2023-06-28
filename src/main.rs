@@ -198,18 +198,10 @@ fn flush_sounds(game_data: &mut GameData) {
 
 fn flush_logic_events(game_data: &mut GameData) {
     while let Some(event) = game_data.logic.get_event() {
-        match event {
-            logic::Event::Solved |
-            logic::Event::GuessEntered |
-            logic::Event::WrongGuessEntered |
-            logic::Event::WordChanged |
-            logic::Event::GridChanged |
-            logic::Event::ScoreChanged(_) => {
-                game_data.redraw_queued = true;
-            },
+        if game_data.game_painter.handle_logic_event(&game_data.logic, &event) {
+            game_data.redraw_queued = true;
         }
 
-        game_data.game_painter.handle_logic_event(&game_data.logic, &event);
         game_data.sound_queue.handle_logic_event(&game_data.logic, &event);
     }
 }

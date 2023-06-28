@@ -181,17 +181,19 @@ impl ScorePainter {
         &mut self,
         logic: &logic::Logic,
         event: &logic::Event,
-    ) {
+    ) -> bool {
         match event {
-            logic::Event::WordChanged => (),
-            logic::Event::GridChanged => (),
-            logic::Event::GuessEntered => (),
-            logic::Event::WrongGuessEntered => (),
+            logic::Event::WordChanged => false,
+            logic::Event::GridChanged => false,
+            logic::Event::GuessEntered => false,
+            logic::Event::WrongGuessEntered => false,
             logic::Event::Solved => {
                 self.animate_solved_score_change(logic);
+                true
             },
             logic::Event::ScoreChanged(team) => {
                 self.animate_score_change(*team, 0);
+                true
             },
         }
     }

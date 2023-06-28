@@ -580,18 +580,10 @@ impl Diveno {
         while let Some(event) = self.logic.get_event() {
             had_event = true;
 
-            match event {
-                game::logic::Event::Solved |
-                game::logic::Event::GuessEntered |
-                game::logic::Event::WrongGuessEntered |
-                game::logic::Event::WordChanged |
-                game::logic::Event::GridChanged |
-                game::logic::Event::ScoreChanged(_) => {
-                    redraw_queued = true;
-                },
+            if self.painter.handle_logic_event(&self.logic, &event) {
+                redraw_queued = true;
             }
 
-            self.painter.handle_logic_event(&self.logic, &event);
             self.sound_queue.handle_logic_event(&self.logic, &event);
         }
 

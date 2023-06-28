@@ -255,13 +255,17 @@ impl LetterPainter {
         &mut self,
         logic: &logic::Logic,
         event: &logic::Event,
-    ) {
+    ) -> bool {
         match event {
             logic::Event::WordChanged => {
                 self.vertices_dirty = true;
                 self.transform_dirty = true;
+                true
             },
-            logic::Event::GridChanged => self.vertices_dirty = true,
+            logic::Event::GridChanged => {
+                self.vertices_dirty = true;
+                true
+            },
             logic::Event::GuessEntered => {
                 self.reveal_start_time = Some(timer::Timer::new());
 
@@ -270,16 +274,20 @@ impl LetterPainter {
                 }
 
                 self.vertices_dirty = true;
+
+                true
             },
             logic::Event::WrongGuessEntered => {
                 self.shake_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
+                true
             },
             logic::Event::Solved => {
                 self.wave_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
+                true
             },
-            logic::Event::ScoreChanged(_) => (),
+            logic::Event::ScoreChanged(_) => false,
         }
     }
 

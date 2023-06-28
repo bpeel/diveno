@@ -83,8 +83,8 @@ impl GamePainter {
         &mut self,
         logic: &logic::Logic,
         event: &logic::Event,
-    ) {
-        self.score_painter.handle_logic_event(logic, event);
-        self.letter_painter.handle_logic_event(logic, event);
+    ) -> bool {
+        self.score_painter.handle_logic_event(logic, event)
+            | self.letter_painter.handle_logic_event(logic, event)
     }
 }
