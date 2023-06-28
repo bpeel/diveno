@@ -649,6 +649,7 @@ impl Diveno {
             "Enter" => game::logic::Key::Enter,
             "Backspace" => game::logic::Key::Backspace,
             " " => game::logic::Key::Space,
+            "Home" => game::logic::Key::Home,
             "Dead" => game::logic::Key::Dead,
             s => {
                 let mut chars = s.chars();

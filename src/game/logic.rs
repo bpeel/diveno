@@ -46,6 +46,7 @@ pub enum Key {
     Backspace,
     Enter,
     Space,
+    Home,
     Letter(char),
 }
 
@@ -196,6 +197,7 @@ impl Logic {
                 self.remove_letter();
             },
             Key::Space => self.change_current_team(),
+            Key::Home => self.pick_word(),
         }
     }
 
