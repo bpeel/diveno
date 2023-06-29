@@ -22,6 +22,7 @@ use std::rc::Rc;
 use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
+use bingo_painter::BingoPainter;
 use super::{logic, timer};
 use logic::{Team, Page, Logic};
 use glow::HasContext;
@@ -58,6 +59,7 @@ pub struct GamePainter {
     paint_data: Rc<PaintData>,
     score_painter: ScorePainter,
     letter_painter: LetterPainter,
+    bingo_painters: [BingoPainter; logic::N_TEAMS],
     width: u32,
     height: u32,
     viewport_dirty: bool,
@@ -75,7 +77,11 @@ impl GamePainter {
         Ok(GamePainter {
             paint_data: Rc::clone(&paint_data),
             score_painter: ScorePainter::new(Rc::clone(&paint_data))?,
-            letter_painter: LetterPainter::new(paint_data)?,
+            letter_painter: LetterPainter::new(Rc::clone(&paint_data))?,
+            bingo_painters: [
+                BingoPainter::new(Rc::clone(&paint_data), Team::Left)?,
+                BingoPainter::new(paint_data, Team::Right)?,
+            ],
             width: 1,
             height: 1,
             viewport_dirty: true,
@@ -85,7 +91,9 @@ impl GamePainter {
 
     fn paint_page(&mut self, logic: &Logic, page: Page) -> bool {
         match page {
-            Page::Bingo(_) => false,
+            Page::Bingo(team) => {
+                self.bingo_painters[team as usize].paint(logic)
+            },
             Page::Word => {
                 self.score_painter.paint(logic)
                     | self.letter_painter.paint(logic)
@@ -156,6 +164,10 @@ impl GamePainter {
 
         self.score_painter.update_fb_size(width, height);
         self.letter_painter.update_fb_size(width, height);
+
+        for painter in self.bingo_painters.iter_mut() {
+            painter.update_fb_size(width, height);
+        }
     }
 
     pub fn handle_logic_event(
@@ -186,6 +198,16 @@ impl GamePainter {
             && animation_position.page_visible(Page::Word)
         {
             redraw_needed = true;
+        }
+
+        for team in [Team::Left, Team::Right] {
+            let painter = &mut self.bingo_painters[team as usize];
+
+            if painter.handle_logic_event(logic, event)
+                && animation_position.page_visible(Page::Bingo(team))
+            {
+                redraw_needed = true;
+            }
         }
 
         redraw_needed
