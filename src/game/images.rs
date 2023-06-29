@@ -43,13 +43,15 @@ impl Drop for Texture {
 pub struct ImageSet {
     pub letters: Texture,
     pub segments: Texture,
+    pub balls: Texture,
 }
 
-const N_IMAGES: usize = 2;
+const N_IMAGES: usize = 3;
 
 static IMAGE_FILENAMES: [&'static str; N_IMAGES] = [
     "letters.png",
     "segments.png",
+    "balls.png",
 ];
 
 pub struct ImageLoader {
@@ -89,11 +91,12 @@ impl ImageLoader {
     pub fn complete(self) -> ImageSet {
         assert_eq!(self.n_textures, N_IMAGES);
 
-        let [letters, segments] = self.textures.map(|s| s.unwrap());
+        let [letters, segments, balls] = self.textures.map(|s| s.unwrap());
 
         ImageSet {
             letters,
             segments,
+            balls,
         }
     }
 }

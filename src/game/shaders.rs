@@ -83,14 +83,14 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn new(
+    pub fn new<'a, I: Iterator<Item = &'a Shader>>(
         gl: Rc<glow::Context>,
-        shaders: &[Shader],
+        shaders: I,
     ) -> Result<Program, String> {
         let program = unsafe {
             let id = gl.create_program()?;
 
-            for shader in shaders.iter() {
+            for shader in shaders {
                 gl.attach_shader(id, shader.id);
             }
 
@@ -171,6 +171,7 @@ impl Drop for Program {
 pub struct Shaders {
     pub letter: Program,
     pub score: Program,
+    pub ball: Program,
 }
 
 struct ShaderFile {
@@ -178,7 +179,7 @@ struct ShaderFile {
     shader_type: u32,
 }
 
-const N_SHADER_FILES: usize = 4;
+const N_SHADER_FILES: usize = 5;
 
 static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
     ShaderFile {
@@ -195,9 +196,13 @@ static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
         shader_type: glow::VERTEX_SHADER
     },
     ShaderFile {
-        name: "score-fragment.glsl",
+        name: "texture-fragment.glsl",
         shader_type:
         glow::FRAGMENT_SHADER
+    },
+    ShaderFile {
+        name: "ball-vertex.glsl",
+        shader_type: glow::VERTEX_SHADER
     },
 ];
 
@@ -250,17 +255,23 @@ impl ShaderLoader {
 
         let letter = Program::new(
             Rc::clone(&self.gl),
-            &shaders[0..2],
+            shaders[0..2].iter(),
         )?;
 
         let score = Program::new(
             Rc::clone(&self.gl),
-            &shaders[2..4],
+            shaders[2..4].iter(),
+        )?;
+
+        let ball = Program::new(
+            Rc::clone(&self.gl),
+            [4, 3].iter().map(|&i| &shaders[i]),
         )?;
 
         Ok(Shaders {
             letter,
             score,
+            ball,
         })
     }
 }

@@ -16,6 +16,7 @@
 
 mod letter_painter;
 mod score_painter;
+mod bingo_painter;
 
 use std::rc::Rc;
 use super::paint_data::PaintData;
