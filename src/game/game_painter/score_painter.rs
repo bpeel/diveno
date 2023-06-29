@@ -187,6 +187,7 @@ impl ScorePainter {
             logic::Event::GridChanged => false,
             logic::Event::GuessEntered => false,
             logic::Event::WrongGuessEntered => false,
+            logic::Event::CurrentPageChanged(_) => false,
             logic::Event::Solved => {
                 self.animate_solved_score_change(logic);
                 true

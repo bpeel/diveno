@@ -31,6 +31,7 @@ pub enum Event {
     Solved,
     ScoreChanged(Team),
     CurrentTeamChanged,
+    CurrentPageChanged(Page),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -398,6 +399,7 @@ impl Logic {
         if page != self.current_page {
             let old_page = self.current_page;
             self.current_page = page;
+            self.queue_event_once(Event::CurrentPageChanged(old_page));
         }
     }
 
