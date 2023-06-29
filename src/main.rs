@@ -153,6 +153,8 @@ fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
         Keycode::Return => game_data.logic.press_key(logic::Key::Enter),
         Keycode::Space => game_data.logic.press_key(logic::Key::Space),
         Keycode::Home => game_data.logic.press_key(logic::Key::Home),
+        Keycode::Left => game_data.logic.press_key(logic::Key::Left),
+        Keycode::Right => game_data.logic.press_key(logic::Key::Right),
         code => {
             if let Some(ch) = char::from_u32(code as u32) {
                 if ch.is_alphabetic() {

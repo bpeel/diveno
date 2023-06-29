@@ -651,6 +651,8 @@ impl Diveno {
             " " => game::logic::Key::Space,
             "Home" => game::logic::Key::Home,
             "Dead" => game::logic::Key::Dead,
+            "ArrowLeft" => game::logic::Key::Left,
+            "ArrowRight" => game::logic::Key::Right,
             s => {
                 let mut chars = s.chars();
 

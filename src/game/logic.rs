@@ -48,6 +48,8 @@ pub enum Key {
     Space,
     Home,
     Letter(char),
+    Left,
+    Right,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -216,6 +218,8 @@ impl Logic {
             },
             Key::Space => self.change_current_team(),
             Key::Home => self.pick_word(),
+            Key::Left => self.change_page_left(),
+            Key::Right => self.change_page_right(),
         }
     }
 

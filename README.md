@@ -36,3 +36,4 @@ The game is meant to be played with a host who makes sure the rules are followed
 | Backspace | Remove the last letter in the current guess. |
 | Space | Switch teams. When a word is solved the points will be added to the current team. |
 | Home | Pick a new word and reset the word grid. |
+| Left, Right | Switch between the left team bingo grid, the word puzzle and the right team bingo grid |
