@@ -21,8 +21,36 @@ use std::rc::Rc;
 use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
-use super::logic;
+use super::{logic, timer};
 use glow::HasContext;
+
+// Number of millisecends to turn a page
+const PAGE_TURN_TIME: i64 = 250;
+
+struct PageAnimation {
+    start_time: timer::Timer,
+    start_page: logic::Page,
+}
+
+enum AnimationPosition {
+    OnePage(logic::Page),
+    TwoPages {
+        left: logic::Page,
+        right: logic::Page,
+        delta: f32,
+    },
+}
+
+impl AnimationPosition {
+    fn page_visible(&self, page: logic::Page) -> bool {
+        match self {
+            AnimationPosition::OnePage(other_page) => page == *other_page,
+            AnimationPosition::TwoPages { left, right, .. } => {
+                page == *left || page == *right
+            },
+        }
+    }
+}
 
 pub struct GamePainter {
     paint_data: Rc<PaintData>,
@@ -31,6 +59,7 @@ pub struct GamePainter {
     width: u32,
     height: u32,
     viewport_dirty: bool,
+    page_animation: Option<PageAnimation>,
 }
 
 impl GamePainter {
@@ -48,26 +77,74 @@ impl GamePainter {
             width: 1,
             height: 1,
             viewport_dirty: true,
+            page_animation: None,
         })
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
-        let gl = &self.paint_data.gl;
-
-        if self.viewport_dirty {
-            unsafe {
-                gl.viewport(0, 0, self.width as i32, self.height as i32);
-            }
-            self.viewport_dirty = false;
+    fn paint_page(&mut self, logic: &logic::Logic, page: logic::Page) -> bool {
+        match page {
+            logic::Page::Bingo(_) => false,
+            logic::Page::Word => {
+                self.score_painter.paint(logic)
+                    | self.letter_painter.paint(logic)
+            },
         }
+    }
 
+    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
         unsafe {
+            let gl = &self.paint_data.gl;
             gl.clear_color(0.0, 0.0, 1.0, 1.0);
             gl.clear(glow::COLOR_BUFFER_BIT);
         }
 
-        self.score_painter.paint(logic)
-            | self.letter_painter.paint(logic)
+        match self.update_animation_position(logic) {
+            AnimationPosition::OnePage(page) => {
+                if self.viewport_dirty {
+                    unsafe {
+                        self.paint_data.gl.viewport(
+                            0,
+                            0,
+                            self.width as i32,
+                            self.height as i32
+                        );
+                    }
+                    self.viewport_dirty = false;
+                }
+
+                self.paint_page(logic, page)
+            },
+            AnimationPosition::TwoPages { left, right, delta } => {
+                self.viewport_dirty = true;
+
+                let x_pos = (-delta * self.width as f32) as i32;
+
+                unsafe {
+                    self.paint_data.gl.viewport(
+                        x_pos,
+                        0,
+                        self.width as i32,
+                        self.height as i32,
+                    );
+                }
+
+                self.paint_page(logic, left);
+
+                unsafe {
+                    self.paint_data.gl.viewport(
+                        x_pos + self.width as i32,
+                        0,
+                        self.width as i32,
+                        self.height as i32,
+                    );
+                }
+
+                self.paint_page(logic, right);
+
+                // Redraw always needed while we are animating
+                true
+            },
+        }
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -84,7 +161,62 @@ impl GamePainter {
         logic: &logic::Logic,
         event: &logic::Event,
     ) -> bool {
-        self.score_painter.handle_logic_event(logic, event)
-            | self.letter_painter.handle_logic_event(logic, event)
+        let mut redraw_needed = false;
+
+        if let logic::Event::CurrentPageChanged(old_page) = event {
+            self.page_animation = Some(PageAnimation {
+                start_time: timer::Timer::new(),
+                start_page: *old_page,
+            });
+            self.viewport_dirty = true;
+            redraw_needed = true;
+        }
+
+        let animation_position = self.update_animation_position(logic);
+
+        if self.score_painter.handle_logic_event(logic, event)
+            && animation_position.page_visible(logic::Page::Word)
+        {
+            redraw_needed = true;
+        }
+
+        if self.letter_painter.handle_logic_event(logic, event)
+            && animation_position.page_visible(logic::Page::Word)
+        {
+            redraw_needed = true;
+        }
+
+        redraw_needed
+    }
+
+    fn update_animation_position(
+        &mut self,
+        logic: &logic::Logic,
+    ) -> AnimationPosition {
+        let current_page = logic.current_page();
+
+        match self.page_animation {
+            Some(PageAnimation { start_time, start_page }) => {
+                let delta = start_time.elapsed() as f32 / PAGE_TURN_TIME as f32;
+
+                if delta >= 1.0 {
+                    self.page_animation = None;
+                    AnimationPosition::OnePage(current_page)
+                } else if current_page.position() < start_page.position() {
+                    AnimationPosition::TwoPages {
+                        left: current_page,
+                        right: start_page,
+                        delta: 1.0 - delta,
+                    }
+                } else {
+                    AnimationPosition::TwoPages {
+                        left: start_page,
+                        right: current_page,
+                        delta: delta,
+                    }
+                }
+            },
+            None => AnimationPosition::OnePage(current_page),
+        }
     }
 }
