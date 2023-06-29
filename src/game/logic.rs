@@ -197,14 +197,16 @@ impl Logic {
     pub fn press_key(&mut self, key: Key) {
         match key {
             Key::Letter(mut letter) => {
-                if letter == 'x' || letter == 'X' {
-                    self.hatify_last_letter();
-                } else {
-                    if self.dead_key_queued {
-                        letter = hatify(letter).unwrap_or(letter);
-                    }
+                if self.current_page == Page::Word {
+                    if letter == 'x' || letter == 'X' {
+                        self.hatify_last_letter();
+                    } else {
+                        if self.dead_key_queued {
+                            letter = hatify(letter).unwrap_or(letter);
+                        }
 
-                    self.add_letter(letter);
+                        self.add_letter(letter);
+                    }
                 }
 
                 self.dead_key_queued = false;
@@ -212,11 +214,15 @@ impl Logic {
             Key::Dead => self.dead_key_queued = true,
             Key::Enter => {
                 self.dead_key_queued = false;
-                self.enter_guess();
+                if self.current_page == Page::Word {
+                    self.enter_guess();
+                }
             },
             Key::Backspace => {
                 self.dead_key_queued = false;
-                self.remove_letter();
+                if self.current_page == Page::Word {
+                    self.remove_letter();
+                }
             },
             Key::Space =>  {
                 self.dead_key_queued = false;
@@ -224,7 +230,9 @@ impl Logic {
             },
             Key::Home => {
                 self.dead_key_queued = false;
-                self.pick_word();
+                if self.current_page == Page::Word {
+                    self.pick_word();
+                }
             },
             Key::Left =>  {
                 self.dead_key_queued = false;
