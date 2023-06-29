@@ -202,11 +202,12 @@ impl Logic {
                 } else {
                     if self.dead_key_queued {
                         letter = hatify(letter).unwrap_or(letter);
-                        self.dead_key_queued = false;
                     }
 
                     self.add_letter(letter);
                 }
+
+                self.dead_key_queued = false;
             },
             Key::Dead => self.dead_key_queued = true,
             Key::Enter => {
@@ -217,10 +218,22 @@ impl Logic {
                 self.dead_key_queued = false;
                 self.remove_letter();
             },
-            Key::Space => self.change_current_team(),
-            Key::Home => self.pick_word(),
-            Key::Left => self.change_page_left(),
-            Key::Right => self.change_page_right(),
+            Key::Space =>  {
+                self.dead_key_queued = false;
+                self.change_current_team();
+            },
+            Key::Home => {
+                self.dead_key_queued = false;
+                self.pick_word();
+            },
+            Key::Left =>  {
+                self.dead_key_queued = false;
+                self.change_page_left();
+            },
+            Key::Right => {
+                self.dead_key_queued = false;
+                self.change_page_right();
+            },
         }
     }
 
