@@ -23,6 +23,7 @@ use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
 use super::{logic, timer};
+use logic::{Team, Page, Logic};
 use glow::HasContext;
 
 // Number of millisecends to turn a page
@@ -30,20 +31,20 @@ const PAGE_TURN_TIME: i64 = 350;
 
 struct PageAnimation {
     start_time: timer::Timer,
-    start_page: logic::Page,
+    start_page: Page,
 }
 
 enum AnimationPosition {
-    OnePage(logic::Page),
+    OnePage(Page),
     TwoPages {
-        left: logic::Page,
-        right: logic::Page,
+        left: Page,
+        right: Page,
         delta: f32,
     },
 }
 
 impl AnimationPosition {
-    fn page_visible(&self, page: logic::Page) -> bool {
+    fn page_visible(&self, page: Page) -> bool {
         match self {
             AnimationPosition::OnePage(other_page) => page == *other_page,
             AnimationPosition::TwoPages { left, right, .. } => {
@@ -82,17 +83,17 @@ impl GamePainter {
         })
     }
 
-    fn paint_page(&mut self, logic: &logic::Logic, page: logic::Page) -> bool {
+    fn paint_page(&mut self, logic: &Logic, page: Page) -> bool {
         match page {
-            logic::Page::Bingo(_) => false,
-            logic::Page::Word => {
+            Page::Bingo(_) => false,
+            Page::Word => {
                 self.score_painter.paint(logic)
                     | self.letter_painter.paint(logic)
             },
         }
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+    pub fn paint(&mut self, logic: &Logic) -> bool {
         unsafe {
             let gl = &self.paint_data.gl;
             gl.clear_color(0.0, 0.0, 1.0, 1.0);
@@ -159,7 +160,7 @@ impl GamePainter {
 
     pub fn handle_logic_event(
         &mut self,
-        logic: &logic::Logic,
+        logic: &Logic,
         event: &logic::Event,
     ) -> bool {
         let mut redraw_needed = false;
@@ -176,13 +177,13 @@ impl GamePainter {
         let animation_position = self.update_animation_position(logic);
 
         if self.score_painter.handle_logic_event(logic, event)
-            && animation_position.page_visible(logic::Page::Word)
+            && animation_position.page_visible(Page::Word)
         {
             redraw_needed = true;
         }
 
         if self.letter_painter.handle_logic_event(logic, event)
-            && animation_position.page_visible(logic::Page::Word)
+            && animation_position.page_visible(Page::Word)
         {
             redraw_needed = true;
         }
@@ -192,7 +193,7 @@ impl GamePainter {
 
     fn update_animation_position(
         &mut self,
-        logic: &logic::Logic,
+        logic: &Logic,
     ) -> AnimationPosition {
         let current_page = logic.current_page();
 
