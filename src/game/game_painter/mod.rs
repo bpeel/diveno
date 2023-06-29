@@ -25,7 +25,7 @@ use super::{logic, timer};
 use glow::HasContext;
 
 // Number of millisecends to turn a page
-const PAGE_TURN_TIME: i64 = 250;
+const PAGE_TURN_TIME: i64 = 350;
 
 struct PageAnimation {
     start_time: timer::Timer,
@@ -203,6 +203,9 @@ impl GamePainter {
                     self.page_animation = None;
                     AnimationPosition::OnePage(current_page)
                 } else if current_page.position() < start_page.position() {
+                    // Ease-in cubic
+                    let delta = delta * delta * delta;
+
                     AnimationPosition::TwoPages {
                         left: current_page,
                         right: start_page,
