@@ -50,6 +50,22 @@ pub enum Key {
     Letter(char),
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Page {
+    Bingo(Team),
+    Word,
+}
+
+impl Page {
+    pub fn position(&self) -> usize {
+        match self {
+            Page::Bingo(Team::Left) => 0,
+            Page::Word => 1,
+            Page::Bingo(Team::Right) => 2,
+        }
+    }
+}
+
 pub struct Letter {
     pub letter: char,
     pub result: LetterResult,
@@ -80,6 +96,7 @@ static HATABLE_LETTERS: [(char, char); 12] = [
 
 pub struct Logic {
     dictionary: Dictionary,
+    current_page: Page,
     word_list: Box<[u64]>,
     word: String,
     word_length: usize,
@@ -102,6 +119,7 @@ impl Logic {
     fn new(dictionary: Dictionary, word_list: Box<[u64]>) -> Logic {
         let mut logic = Logic {
             dictionary,
+            current_page: Page::Word,
             word_list,
             word: String::new(),
             word_length: 0,
@@ -356,6 +374,29 @@ impl Logic {
         self.guesses().any(|guess| Logic::guess_matches_word(guess, word))
     }
 
+    fn change_page_left(&mut self) {
+        match self.current_page {
+            Page::Bingo(Team::Left) => (),
+            Page::Word => self.set_page(Page::Bingo(Team::Left)),
+            Page::Bingo(Team::Right) => self.set_page(Page::Word),
+        }
+    }
+
+    fn change_page_right(&mut self) {
+        match self.current_page {
+            Page::Bingo(Team::Left) => self.set_page(Page::Word),
+            Page::Word => self.set_page(Page::Bingo(Team::Right)),
+            Page::Bingo(Team::Right) => (),
+        }
+    }
+
+    fn set_page(&mut self, page: Page) {
+        if page != self.current_page {
+            let old_page = self.current_page;
+            self.current_page = page;
+        }
+    }
+
     pub fn visible_letters(&self) -> u32 {
         self.visible_letters
     }
@@ -382,6 +423,10 @@ impl Logic {
 
     pub fn current_team(&self) -> Team {
         self.current_team
+    }
+
+    pub fn current_page(&self) -> Page {
+        self.current_page
     }
 }
 
