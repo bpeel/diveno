@@ -28,3 +28,4 @@ pub mod dictionary;
 pub mod random;
 pub mod timing;
 pub mod sound_queue;
+pub mod tombola;
