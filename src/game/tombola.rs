@@ -108,7 +108,11 @@ impl Tombola {
             let side_handle = rigid_body_set.insert(side_body);
 
             let collider = ColliderBuilder::cuboid(
-                SIDE_LENGTH / 2.0,
+                // The width is added to the length so that the ends
+                // of the sides will overlap. Otherwise the balls can
+                // sometimes escape through the single point where the
+                // sides touch.
+                SIDE_LENGTH / 2.0 + SIDE_WIDTH,
                 SIDE_WIDTH / 2.0,
             ).build();
             collider_set.insert_with_parent(
