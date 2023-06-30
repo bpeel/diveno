@@ -21,12 +21,12 @@ use std::f32::consts::PI;
 pub const N_NUMBER_BALLS: usize = 17;
 pub const N_BLACK_BALLS: usize = 3;
 pub const N_BALLS: usize = N_NUMBER_BALLS + N_BLACK_BALLS;
-pub const BALL_SIZE: f32 = 10.0;
+pub const BALL_SIZE: f32 = 12.0;
 const STEPS_PER_SECOND: i64 = 60;
 
 // Distance from the centre of the tombola to the inner part of the
 // middle of a side
-pub const APOTHEM: f32 = 100.0;
+pub const APOTHEM: f32 = 50.0;
 // Number of sides of the tombola shape (it’s a hexagon)
 pub const N_SIDES: u32 = 6;
 
