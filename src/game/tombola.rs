@@ -16,12 +16,30 @@
 
 use rapier2d::prelude::*;
 use super::timer::Timer;
+use std::f32::consts::PI;
 
 pub const N_NUMBER_BALLS: usize = 17;
 pub const N_BLACK_BALLS: usize = 3;
 pub const N_BALLS: usize = N_NUMBER_BALLS + N_BLACK_BALLS;
 pub const BALL_SIZE: f32 = 10.0;
 const STEPS_PER_SECOND: i64 = 60;
+
+// Distance from the centre of the tombola to the inner part of the
+// middle of a side
+pub const APOTHEM: f32 = 100.0;
+// Number of sides of the tombola shape (it’s a hexagon)
+pub const N_SIDES: u32 = 6;
+
+// Length of a side of the tombola
+// https://en.wikipedia.org/wiki/Regular_polygon#Circumradius
+// Rustc can’t do const trigonometry so this is:
+// 2.0 * (PI / N_SIDES as f32).tan() * APOTHEM
+pub const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
+// Width of the side of the tombola
+const SIDE_WIDTH: f32 = 10.0;
+
+// Number of milliseconds per turn of the tombola
+const TURN_TIME: i64 = 2000;
 
 pub enum BallType {
     Number(u8),
@@ -51,6 +69,7 @@ pub struct Tombola {
     ccd_solver: CCDSolver,
     gravity: Vector<Real>,
     ball_handles: Vec<RigidBodyHandle>,
+    side_handles: Vec<ColliderHandle>,
 }
 
 impl Tombola {
@@ -58,6 +77,7 @@ impl Tombola {
         let mut rigid_body_set = RigidBodySet::new();
         let mut collider_set = ColliderSet::new();
         let mut ball_handles = Vec::with_capacity(N_BALLS);
+        let mut side_handles = Vec::with_capacity(N_SIDES as usize);
 
         ball_handles.extend((0..N_BALLS).map(|ball_num| {
             let ball_body = RigidBodyBuilder::dynamic()
@@ -79,10 +99,13 @@ impl Tombola {
             ball_handle
         }));
 
-        let collider = ColliderBuilder::cuboid(1000.0, 10.0)
-            .translation(vector![0.0, -100.0])
-            .build();
-        collider_set.insert(collider);
+        side_handles.extend((0..N_SIDES).map(|_| {
+            let collider = ColliderBuilder::cuboid(
+                SIDE_LENGTH / 2.0,
+                SIDE_WIDTH / 2.0,
+            ).build();
+            collider_set.insert(collider)
+        }));
 
         Tombola {
             start_time: Timer::new(),
@@ -100,6 +123,32 @@ impl Tombola {
             ccd_solver: CCDSolver::new(),
             gravity: vector![0.0, -9.81],
             ball_handles,
+            side_handles,
+        }
+    }
+
+    pub fn rotation(&self) -> f32 {
+        self.steps_executed as f32
+            * 1000.0
+            / STEPS_PER_SECOND as f32
+            / TURN_TIME as f32
+            * 2.0 * PI
+    }
+
+    fn update_sides(&mut self) {
+        let rotation = self.rotation();
+
+        for (side_num, &side_handle) in self.side_handles.iter().enumerate() {
+            let collider = &mut self.collider_set[side_handle];
+
+            const RADIUS: f32 = APOTHEM + SIDE_WIDTH / 2.0;
+            let angle = rotation + side_num as f32 * 2.0 * PI / N_SIDES as f32;
+
+            let x = -RADIUS * angle.sin();
+            let y = RADIUS * angle.cos();
+
+            collider.set_translation(vector![x, y]);
+            collider.set_rotation(Rotation::new(angle));
         }
     }
 
@@ -116,6 +165,8 @@ impl Tombola {
             self.steps_executed = target_steps;
         } else {
             for _ in 0..n_steps {
+                self.update_sides();
+
                 self.physics_pipeline.step(
                     &self.gravity,
                     &self.integration_parameters,
@@ -131,9 +182,9 @@ impl Tombola {
                     &(), // physics_hooks
                     &(), // event handler
                 );
-            }
 
-            self.steps_executed += n_steps;
+                self.steps_executed += 1;
+            }
         }
     }
 
