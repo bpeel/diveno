@@ -44,14 +44,16 @@ pub struct ImageSet {
     pub letters: Texture,
     pub segments: Texture,
     pub balls: Texture,
+    pub tombola: Texture,
 }
 
-const N_IMAGES: usize = 3;
+const N_IMAGES: usize = 4;
 
 static IMAGE_FILENAMES: [&'static str; N_IMAGES] = [
     "letters.png",
     "segments.png",
     "balls.png",
+    "tombola.png",
 ];
 
 pub struct ImageLoader {
@@ -91,12 +93,18 @@ impl ImageLoader {
     pub fn complete(self) -> ImageSet {
         assert_eq!(self.n_textures, N_IMAGES);
 
-        let [letters, segments, balls] = self.textures.map(|s| s.unwrap());
+        let [
+            letters,
+            segments,
+            balls,
+            tombola,
+        ] = self.textures.map(|s| s.unwrap());
 
         ImageSet {
             letters,
             segments,
             balls,
+            tombola,
         }
     }
 }

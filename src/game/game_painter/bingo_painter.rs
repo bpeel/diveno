@@ -27,6 +27,8 @@ const N_BALLS_TEX_X: u32 = 11;
 // Number of balls in a column of the ball texture
 const N_BALLS_TEX_Y: u32 = 3;
 
+const N_TOMBOLA_ELEMENTS: usize = (tombola::N_SIDES as usize + 1) * 2;
+
 #[repr(C)]
 struct Vertex {
     x: f32,
@@ -42,6 +44,7 @@ pub struct BingoPainter {
     team: logic::Team,
     buffer: Rc<Buffer>,
     array_object: ArrayObject,
+    tombola_array_object: ArrayObject,
     paint_data: Rc<PaintData>,
     width: u32,
     height: u32,
@@ -50,6 +53,9 @@ pub struct BingoPainter {
     ball_height: f32,
     vertices_dirty: bool,
     ball_size_uniform: glow::UniformLocation,
+    translation_uniform: glow::UniformLocation,
+    scale_uniform: glow::UniformLocation,
+    rotation_uniform: glow::UniformLocation,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
@@ -76,10 +82,41 @@ impl BingoPainter {
             }
         };
 
+        let translation_uniform = unsafe {
+            match paint_data.gl.get_uniform_location(
+                paint_data.shaders.tombola.id(),
+                "translation",
+            ) {
+                Some(u) => u,
+                None => return Err("Missing “translation” uniform".to_string()),
+            }
+        };
+
+        let scale_uniform = unsafe {
+            match paint_data.gl.get_uniform_location(
+                paint_data.shaders.tombola.id(),
+                "scale",
+            ) {
+                Some(u) => u,
+                None => return Err("Missing “scale” uniform".to_string()),
+            }
+        };
+
+        let rotation_uniform = unsafe {
+            match paint_data.gl.get_uniform_location(
+                paint_data.shaders.tombola.id(),
+                "rotation",
+            ) {
+                Some(u) => u,
+                None => return Err("Missing “rotation” uniform".to_string()),
+            }
+        };
+
         Ok(BingoPainter {
             team,
             buffer,
             array_object,
+            tombola_array_object: create_tombola_array_object(&paint_data)?,
             paint_data,
             width: 1,
             height: 1,
@@ -88,6 +125,9 @@ impl BingoPainter {
             ball_height: 1.0,
             vertices_dirty: true,
             ball_size_uniform,
+            translation_uniform,
+            scale_uniform,
+            rotation_uniform,
             vertices: Vec::new(),
             most_quads: 0,
         })
@@ -129,6 +169,25 @@ impl BingoPainter {
             );
 
             gl.disable(glow::BLEND);
+
+            self.tombola_array_object.bind();
+
+            gl.bind_texture(
+                glow::TEXTURE_2D,
+                Some(self.paint_data.images.tombola.id()),
+            );
+
+            gl.use_program(Some(self.paint_data.shaders.tombola.id()));
+            gl.uniform_1_f32(
+                Some(&self.rotation_uniform),
+                logic.tombola_rotation(self.team),
+            );
+            gl.draw_elements(
+                glow::TRIANGLE_STRIP,
+                N_TOMBOLA_ELEMENTS as i32,
+                glow::UNSIGNED_BYTE,
+                0, // offset
+            );
         }
 
         self.vertices_dirty = true;
@@ -165,7 +224,27 @@ impl BingoPainter {
             );
         }
 
+        self.update_tombola_uniforms();
+
         self.vertices_dirty = true;
+    }
+
+    fn update_tombola_uniforms(&mut self) {
+        let gl = &self.paint_data.gl;
+
+        unsafe {
+            gl.use_program(Some(self.paint_data.shaders.tombola.id()));
+            gl.uniform_2_f32(
+                Some(&self.translation_uniform),
+                0.0,
+                0.0,
+            );
+            gl.uniform_2_f32(
+                Some(&self.scale_uniform),
+                self.ball_width / tombola::BALL_SIZE,
+                self.ball_height / tombola::BALL_SIZE,
+            );
+        }
     }
 
     pub fn handle_logic_event(
@@ -385,4 +464,130 @@ fn create_vertex_buffer(paint_data: &PaintData) -> Result<Rc<Buffer>, String> {
     let buffer = Buffer::new(Rc::clone(&paint_data.gl))?;
 
     Ok(Rc::new(buffer))
+}
+
+#[repr(C)]
+struct TombolaVertex {
+    x: f32,
+    y: f32,
+    s: u16,
+    t: u16,
+}
+
+fn create_tombola_buffer(
+    paint_data: &PaintData,
+) -> Result<Rc<Buffer>, String> {
+    let inner_radius = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
+    let outer_radius = inner_radius + tombola::BALL_SIZE / 2.0;
+    const START_ANGLE: f32 = PI / tombola::N_SIDES as f32;
+    let mut vertices = Vec::with_capacity(tombola::N_SIDES as usize * 2);
+
+    for side in 0..tombola::N_SIDES {
+        let angle = START_ANGLE
+            + side as f32
+            * 2.0 * PI
+            / tombola::N_SIDES as f32;
+        let sin_angle = angle.sin();
+        let cos_angle = angle.cos();
+
+        vertices.push(TombolaVertex {
+            x: sin_angle * outer_radius,
+            y: cos_angle * outer_radius,
+            s: 32767,
+            t: 65535,
+        });
+        vertices.push(TombolaVertex {
+            x: sin_angle * inner_radius,
+            y: cos_angle * inner_radius,
+            s: 32767,
+            t: 0,
+        });
+    }
+
+    assert_eq!(vertices.len(), tombola::N_SIDES as usize * 2);
+
+    let buffer = Buffer::new(Rc::clone(&paint_data.gl))?;
+
+    let gl = &paint_data.gl;
+
+    unsafe {
+        gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer.id()));
+
+        let buffer_data = std::slice::from_raw_parts(
+            vertices.as_ptr() as *const u8,
+            vertices.len() * std::mem::size_of::<TombolaVertex>(),
+        );
+
+        gl.buffer_data_u8_slice(
+            glow::ARRAY_BUFFER,
+            buffer_data,
+            glow::STATIC_DRAW,
+        );
+    }
+
+    Ok(Rc::new(buffer))
+}
+
+fn set_tombola_element_buffer(
+    paint_data: &PaintData,
+    array_object: &mut ArrayObject,
+) -> Result<(), String> {
+    let mut elements = Vec::with_capacity(N_TOMBOLA_ELEMENTS);
+
+    for side in 0..tombola::N_SIDES as u8 {
+        elements.push(side * 2);
+        elements.push(side * 2 + 1);
+    }
+
+    elements.push(0);
+    elements.push(1);
+
+    assert_eq!(elements.len(), N_TOMBOLA_ELEMENTS);
+
+    let buffer = Rc::new(Buffer::new(Rc::clone(&paint_data.gl))?);
+    array_object.set_element_buffer(buffer);
+
+    unsafe {
+        paint_data.gl.buffer_data_u8_slice(
+            glow::ELEMENT_ARRAY_BUFFER,
+            &elements,
+            glow::STATIC_DRAW,
+        );
+    }
+
+    Ok(())
+}
+
+fn create_tombola_array_object(
+    paint_data: &Rc<PaintData>
+) -> Result<ArrayObject, String> {
+    let buffer = create_tombola_buffer(paint_data)?;
+
+    let mut array_object = ArrayObject::new(Rc::clone(paint_data))?;
+    let mut offset = 0;
+
+    array_object.set_attribute(
+        shaders::POSITION_ATTRIB,
+        2, // size
+        glow::FLOAT,
+        false, // normalized
+        std::mem::size_of::<TombolaVertex>() as i32,
+        Rc::clone(&buffer),
+        offset,
+    );
+    offset += std::mem::size_of::<f32>() as i32 * 2;
+
+    array_object.set_attribute(
+        shaders::TEX_COORD_ATTRIB,
+        2, // size
+        glow::UNSIGNED_SHORT,
+        true, // normalized
+        std::mem::size_of::<TombolaVertex>() as i32,
+        buffer,
+        offset,
+    );
+
+    set_tombola_element_buffer(&paint_data, &mut array_object)?;
+
+    Ok(array_object)
 }

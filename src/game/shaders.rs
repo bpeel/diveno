@@ -172,6 +172,7 @@ pub struct Shaders {
     pub letter: Program,
     pub score: Program,
     pub ball: Program,
+    pub tombola: Program,
 }
 
 struct ShaderFile {
@@ -179,7 +180,7 @@ struct ShaderFile {
     shader_type: u32,
 }
 
-const N_SHADER_FILES: usize = 5;
+const N_SHADER_FILES: usize = 6;
 
 static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
     ShaderFile {
@@ -202,6 +203,10 @@ static SHADER_FILES: [ShaderFile; N_SHADER_FILES] = [
     },
     ShaderFile {
         name: "ball-vertex.glsl",
+        shader_type: glow::VERTEX_SHADER
+    },
+    ShaderFile {
+        name: "tombola-vertex.glsl",
         shader_type: glow::VERTEX_SHADER
     },
 ];
@@ -268,10 +273,16 @@ impl ShaderLoader {
             [4, 3].iter().map(|&i| &shaders[i]),
         )?;
 
+        let tombola = Program::new(
+            Rc::clone(&self.gl),
+            [5, 3].iter().map(|&i| &shaders[i]),
+        )?;
+
         Ok(Shaders {
             letter,
             score,
             ball,
+            tombola,
         })
     }
 }
