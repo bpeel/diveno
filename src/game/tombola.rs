@@ -114,7 +114,8 @@ impl Tombola {
                 // sides touch.
                 SIDE_LENGTH / 2.0 + SIDE_WIDTH,
                 SIDE_WIDTH / 2.0,
-            ).build();
+            ).restitution(0.7)
+                .build();
             collider_set.insert_with_parent(
                 collider,
                 side_handle,
