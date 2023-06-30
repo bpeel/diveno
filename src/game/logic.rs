@@ -458,6 +458,10 @@ impl Logic {
         self.tombolas[team as usize].balls()
     }
 
+    pub fn tombola_rotation(&self, team: Team) -> f32 {
+        self.tombolas[team as usize].rotation()
+    }
+
     pub fn current_team(&self) -> Team {
         self.current_team
     }
