@@ -69,7 +69,7 @@ pub struct Tombola {
     ccd_solver: CCDSolver,
     gravity: Vector<Real>,
     ball_handles: Vec<RigidBodyHandle>,
-    side_handles: Vec<ColliderHandle>,
+    side_handles: Vec<RigidBodyHandle>,
 }
 
 impl Tombola {
@@ -100,11 +100,21 @@ impl Tombola {
         }));
 
         side_handles.extend((0..N_SIDES).map(|_| {
+            let side_body = RigidBodyBuilder::kinematic_position_based()
+                .build();
+            let side_handle = rigid_body_set.insert(side_body);
+
             let collider = ColliderBuilder::cuboid(
                 SIDE_LENGTH / 2.0,
                 SIDE_WIDTH / 2.0,
             ).build();
-            collider_set.insert(collider)
+            collider_set.insert_with_parent(
+                collider,
+                side_handle,
+                &mut rigid_body_set,
+            );
+
+            side_handle
         }));
 
         Tombola {
@@ -139,7 +149,7 @@ impl Tombola {
         let rotation = self.rotation();
 
         for (side_num, &side_handle) in self.side_handles.iter().enumerate() {
-            let collider = &mut self.collider_set[side_handle];
+            let side_body = &mut self.rigid_body_set[side_handle];
 
             const RADIUS: f32 = APOTHEM + SIDE_WIDTH / 2.0;
             let angle = rotation + side_num as f32 * 2.0 * PI / N_SIDES as f32;
@@ -147,8 +157,8 @@ impl Tombola {
             let x = -RADIUS * angle.sin();
             let y = RADIUS * angle.cos();
 
-            collider.set_translation(vector![x, y]);
-            collider.set_rotation(Rotation::new(angle));
+            side_body.set_next_kinematic_translation(vector![x, y]);
+            side_body.set_next_kinematic_rotation(Rotation::new(angle));
         }
     }
 
