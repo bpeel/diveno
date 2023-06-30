@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic};
+use super::super::{shaders, logic, tombola};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use std::f32::consts::PI;
@@ -93,7 +93,9 @@ impl BingoPainter {
         })
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+    pub fn paint(&mut self, logic: &mut logic::Logic) -> bool {
+        logic.step_tombola(self.team);
+
         if self.ball_size_dirty {
             self.update_ball_size();
             self.ball_size_dirty = false;
@@ -129,7 +131,8 @@ impl BingoPainter {
             gl.disable(glow::BLEND);
         }
 
-        false
+        self.vertices_dirty = true;
+        true
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -175,16 +178,21 @@ impl BingoPainter {
 
     fn fill_vertices_array(
         &mut self,
-        _logic: &logic::Logic,
+        logic: &logic::Logic,
     ) {
         self.vertices.clear();
 
-        for i in 0..26 {
+        for ball in logic.balls(self.team) {
+            let ball_num = match ball.ball_type {
+                tombola::BallType::Number(n) => n as u32 - 1,
+                tombola::BallType::Black => 25,
+            };
+
             self.add_ball(
-                i,
-                -1.0 + (i as f32 + 0.5) * self.ball_width,
-                0.0,
-                i as f32 / 26.0 * 2.0 * PI,
+                ball_num,
+                ball.x * self.ball_width / tombola::BALL_SIZE as f32,
+                ball.y * self.ball_height / tombola::BALL_SIZE as f32,
+                ball.rotation,
             );
         }
     }
