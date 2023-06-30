@@ -16,9 +16,9 @@
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use super::letter_texture;
+use super::{letter_texture, random, tombola};
 use super::dictionary::Dictionary;
-use super::random;
+use tombola::Tombola;
 
 pub const N_GUESSES: usize = 6;
 
@@ -107,6 +107,7 @@ pub struct Logic {
     guesses: [Vec<Letter>; N_GUESSES],
     n_guesses: usize,
     scores: [u32; N_TEAMS],
+    tombolas: [Tombola; N_TEAMS],
     current_team: Team,
     event_queue: VecDeque<Event>,
     letter_counter: LetterCounter,
@@ -130,6 +131,7 @@ impl Logic {
             guesses: Default::default(),
             n_guesses: 0,
             scores: Default::default(),
+            tombolas: [Tombola::new(), Tombola::new()],
             current_team: Team::Left,
             event_queue: VecDeque::new(),
             letter_counter: LetterCounter::new(),
@@ -446,6 +448,14 @@ impl Logic {
 
     pub fn team_score(&self, team: Team) -> u32 {
         self.scores[team as usize]
+    }
+
+    pub fn step_tombola(&mut self, team: Team) {
+        self.tombolas[team as usize].step();
+    }
+
+    pub fn balls(&self, team: Team) -> tombola::BallIter {
+        self.tombolas[team as usize].balls()
     }
 
     pub fn current_team(&self) -> Team {
