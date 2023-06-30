@@ -101,8 +101,9 @@ impl Tombola {
             ball_handle
         }));
 
-        side_handles.extend((0..N_SIDES).map(|_| {
+        side_handles.extend((0..N_SIDES).map(|side_num| {
             let side_body = RigidBodyBuilder::kinematic_position_based()
+                .position(Tombola::side_position(side_num as usize, 0.0))
                 .build();
             let side_handle = rigid_body_set.insert(side_body);
 
@@ -147,20 +148,23 @@ impl Tombola {
             * 2.0 * PI
     }
 
+    fn side_position(side_num: usize, rotation: f32) -> Isometry<Real> {
+        const RADIUS: f32 = APOTHEM + SIDE_WIDTH / 2.0;
+        let angle = rotation + side_num as f32 * 2.0 * PI / N_SIDES as f32;
+
+        let x = -RADIUS * angle.sin();
+        let y = RADIUS * angle.cos();
+
+        Isometry::new(vector![x, y], angle)
+    }
+
     fn update_sides(&mut self) {
         let rotation = self.rotation();
 
         for (side_num, &side_handle) in self.side_handles.iter().enumerate() {
+            let position = Tombola::side_position(side_num, rotation);
             let side_body = &mut self.rigid_body_set[side_handle];
-
-            const RADIUS: f32 = APOTHEM + SIDE_WIDTH / 2.0;
-            let angle = rotation + side_num as f32 * 2.0 * PI / N_SIDES as f32;
-
-            let x = -RADIUS * angle.sin();
-            let y = RADIUS * angle.cos();
-
-            side_body.set_next_kinematic_translation(vector![x, y]);
-            side_body.set_next_kinematic_rotation(Rotation::new(angle));
+            side_body.set_next_kinematic_position(position);
         }
     }
 
