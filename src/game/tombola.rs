@@ -79,13 +79,15 @@ impl Tombola {
         let mut ball_handles = Vec::with_capacity(N_BALLS);
         let mut side_handles = Vec::with_capacity(N_SIDES as usize);
 
-        ball_handles.extend((0..N_BALLS).map(|ball_num| {
+        let packer = HexagonalPacker::new(
+            BALL_SIZE / 2.0,
+            (N_BALLS as f32).sqrt().round() as u32,
+        ).take(N_BALLS);
+
+        ball_handles.extend(packer.enumerate().map(|(ball_num, (x, y))| {
             let ball_body = RigidBodyBuilder::dynamic()
                 .user_data(ball_num as u128)
-                .translation(vector![
-                    ball_num as f32 * BALL_SIZE as f32 * 0.25 - 100.0,
-                    ball_num as f32 * BALL_SIZE as f32
-                ])
+                .translation(vector![x, y])
                 .build();
             let ball_handle = rigid_body_set.insert(ball_body);
 
@@ -232,5 +234,55 @@ impl<'a> Iterator for BallIter<'a> {
                 rotation: ball_body.rotation().angle(),
             }
         })
+    }
+}
+
+pub struct HexagonalPacker {
+    radius: f32,
+    vertical_distance: f32,
+    next_circle_num: u32,
+    n_circles_per_row: u32,
+}
+
+impl HexagonalPacker {
+    fn new(radius: f32, n_circles_per_row: u32) -> HexagonalPacker {
+        // Vertical distance between the packed circles. This is the
+        // apothem of the hexagon.
+        let vertical_distance = BALL_SIZE * (PI / 6.0).cos();
+
+        HexagonalPacker {
+            radius,
+            vertical_distance,
+            next_circle_num: 0,
+            n_circles_per_row,
+        }
+    }
+}
+
+impl Iterator for HexagonalPacker {
+    type Item = (f32, f32);
+
+    fn next(&mut self) -> Option<(f32, f32)> {
+        let x_index = self.next_circle_num % self.n_circles_per_row;
+        let y_index = self.next_circle_num / self.n_circles_per_row;
+        self.next_circle_num += 1;
+
+        let mut x = if x_index & 1 == 0 {
+            (x_index / 2) as f32
+        } else {
+            -((x_index / 2) as f32) - 1.0
+        };
+
+        if y_index > 0 && (y_index - 1) & 2 == 0 {
+            x += 0.5
+        }
+
+        let y = if y_index & 1 == 0 {
+            (y_index / 2) as f32
+        } else {
+            -((y_index / 2) as f32) - 1.0
+        };
+
+        Some((x * self.radius * 2.0, y * self.vertical_distance))
     }
 }
