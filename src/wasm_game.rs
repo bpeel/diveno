@@ -597,7 +597,7 @@ impl Diveno {
     fn redraw(&mut self) -> bool {
         let mut redraw_queued = self.flush_logic_events();
 
-        redraw_queued |= self.painter.paint(&self.logic);
+        redraw_queued |= self.painter.paint(&mut self.logic);
 
         redraw_queued
     }

@@ -89,7 +89,7 @@ impl GamePainter {
         })
     }
 
-    fn paint_page(&mut self, logic: &Logic, page: Page) -> bool {
+    fn paint_page(&mut self, logic: &mut Logic, page: Page) -> bool {
         match page {
             Page::Bingo(team) => {
                 self.bingo_painters[team as usize].paint(logic)
@@ -101,7 +101,7 @@ impl GamePainter {
         }
     }
 
-    pub fn paint(&mut self, logic: &Logic) -> bool {
+    pub fn paint(&mut self, logic: &mut Logic) -> bool {
         unsafe {
             let gl = &self.paint_data.gl;
             gl.clear_color(0.0, 0.0, 1.0, 1.0);
