@@ -76,7 +76,10 @@ impl GamePainter {
 
         Ok(GamePainter {
             paint_data: Rc::clone(&paint_data),
-            score_painter: ScorePainter::new(Rc::clone(&paint_data))?,
+            score_painter: ScorePainter::new(
+                Rc::clone(&paint_data),
+                score_painter::TeamChoice::AllTeams,
+            )?,
             letter_painter: LetterPainter::new(Rc::clone(&paint_data))?,
             bingo_painters: [
                 BingoPainter::new(Rc::clone(&paint_data), Team::Left)?,

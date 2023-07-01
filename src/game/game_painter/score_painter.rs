@@ -81,6 +81,12 @@ const BAR_TEX_S2: u16 = BAR_TEX_S1 + (17 * 65535 / TEX_WIDTH) as u16;
 // Height of the bar
 const BAR_HEIGHT: f32 = SCORE_WIDTH / 10.0;
 
+/// Used in the constructor to pick which team’s score to display.
+pub enum TeamChoice {
+    OneTeam(logic::Team),
+    AllTeams,
+}
+
 #[repr(C)]
 struct Vertex {
     x: f32,
@@ -98,6 +104,7 @@ struct AnimatedScore {
 }
 
 pub struct ScorePainter {
+    team_choice: TeamChoice,
     buffer: Rc<Buffer>,
     array_object: ArrayObject,
     paint_data: Rc<PaintData>,
@@ -111,7 +118,10 @@ pub struct ScorePainter {
 }
 
 impl ScorePainter {
-    pub fn new(paint_data: Rc<PaintData>) -> Result<ScorePainter, String> {
+    pub fn new(
+        paint_data: Rc<PaintData>,
+        team_choice: TeamChoice,
+    ) -> Result<ScorePainter, String> {
         let buffer = create_score_buffer(&paint_data)?;
         let array_object = create_array_object(
             &paint_data,
@@ -119,6 +129,7 @@ impl ScorePainter {
         )?;
 
         Ok(ScorePainter {
+            team_choice,
             buffer,
             array_object,
             paint_data,
@@ -129,6 +140,13 @@ impl ScorePainter {
             animated_scores: Default::default(),
             last_scores: Default::default(),
         })
+    }
+
+    fn team_is_visible(&self, team: logic::Team) -> bool {
+        match self.team_choice {
+            TeamChoice::OneTeam(chosen_team) => team == chosen_team,
+            TeamChoice::AllTeams => true,
+        }
     }
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
@@ -190,12 +208,20 @@ impl ScorePainter {
             logic::Event::GuessRejected => false,
             logic::Event::CurrentPageChanged(_) => false,
             logic::Event::Solved => {
-                self.animate_solved_score_change(logic);
-                true
+                if self.team_is_visible(logic.current_team()) {
+                    self.animate_solved_score_change(logic);
+                    true
+                } else {
+                    false
+                }
             },
             logic::Event::ScoreChanged(team) => {
-                self.animate_score_change(*team, 0);
-                true
+                if self.team_is_visible(*team) {
+                    self.animate_score_change(*team, 0);
+                    true
+                } else {
+                    false
+                }
             },
             logic::Event::CurrentTeamChanged => {
                 self.vertices_dirty = true;
@@ -527,15 +553,27 @@ impl ScorePainter {
     fn fill_vertices_array(&mut self, logic: &logic::Logic) {
         self.vertices.clear();
 
-        let left_score = self.update_animated_score(logic, logic::Team::Left);
-        self.add_scoreboard(-1.0, left_score);
+        if self.team_is_visible(logic::Team::Left) {
+            let left_score = self.update_animated_score(
+                logic,
+                logic::Team::Left
+            );
+            self.add_scoreboard(-1.0, left_score);
+        }
 
-        let right_score = self.update_animated_score(logic, logic::Team::Right);
-        self.add_scoreboard(1.0 - SCORE_WIDTH, right_score);
+        if self.team_is_visible(logic::Team::Right) {
+            let right_score = self.update_animated_score(
+                logic,
+                logic::Team::Right
+            );
+            self.add_scoreboard(1.0 - SCORE_WIDTH, right_score);
+        }
 
-        self.add_current_team(logic);
+        if self.team_is_visible(logic.current_team()) {
+            self.add_current_team(logic);
+        }
 
-        assert_eq!(self.vertices.len(), TOTAL_N_QUADS * 4);
+        assert!(self.vertices.len() <= TOTAL_N_QUADS * 4);
     }
 
     fn update_vertices(&mut self, logic: &logic::Logic) {
