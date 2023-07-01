@@ -29,6 +29,9 @@ const N_BALLS_TEX_Y: u32 = 3;
 
 const N_TOMBOLA_ELEMENTS: usize = (tombola::N_SIDES as usize + 1) * 2;
 
+// Width of the side of the tombola, in the same units as the tombola module
+const SIDE_WIDTH: f32 = tombola::BALL_SIZE / 2.0;
+
 #[repr(C)]
 struct Vertex {
     x: f32,
@@ -48,9 +51,11 @@ pub struct BingoPainter {
     paint_data: Rc<PaintData>,
     width: u32,
     height: u32,
-    ball_size_dirty: bool,
+    transform_dirty: bool,
     ball_width: f32,
     ball_height: f32,
+    tombola_center_x: f32,
+    tombola_center_y: f32,
     vertices_dirty: bool,
     ball_size_uniform: glow::UniformLocation,
     translation_uniform: glow::UniformLocation,
@@ -120,9 +125,11 @@ impl BingoPainter {
             paint_data,
             width: 1,
             height: 1,
-            ball_size_dirty: true,
+            transform_dirty: true,
             ball_width: 1.0,
             ball_height: 1.0,
+            tombola_center_x: 0.0,
+            tombola_center_y: 0.0,
             vertices_dirty: true,
             ball_size_uniform,
             translation_uniform,
@@ -136,9 +143,9 @@ impl BingoPainter {
     pub fn paint(&mut self, logic: &mut logic::Logic) -> bool {
         logic.step_tombola(self.team);
 
-        if self.ball_size_dirty {
-            self.update_ball_size();
-            self.ball_size_dirty = false;
+        if self.transform_dirty {
+            self.update_transform();
+            self.transform_dirty = false;
         }
 
         if self.vertices_dirty {
@@ -197,12 +204,17 @@ impl BingoPainter {
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
         self.width = width;
         self.height = height;
-        self.ball_size_dirty = true;
+        self.transform_dirty = true;
     }
 
-    fn update_ball_size(&mut self) {
-        // Size of a ball along the smaller axis
-        let small_size = 2.0 / 20.0;
+    fn update_transform(&mut self) {
+        let inner_diameter = tombola::APOTHEM
+            / (PI / tombola::N_SIDES as f32).cos()
+            * 2.0;
+        let diameter = inner_diameter + SIDE_WIDTH * 2.0;
+        // Size of a ball along the smaller axis. The tombola diameter
+        // is 1 unit along the small axis.
+        let small_size = tombola::BALL_SIZE / diameter;
 
         let (ball_w, ball_h) = if self.width < self.height {
             (small_size, small_size * self.width as f32 / self.height as f32)
@@ -212,6 +224,8 @@ impl BingoPainter {
 
         self.ball_width = ball_w;
         self.ball_height = ball_h;
+        self.tombola_center_x = 0.0;
+        self.tombola_center_y = diameter / 2.0 * ball_h / tombola::BALL_SIZE;
 
         let gl = &self.paint_data.gl;
 
@@ -222,22 +236,12 @@ impl BingoPainter {
                 ball_w,
                 ball_h,
             );
-        }
 
-        self.update_tombola_uniforms();
-
-        self.vertices_dirty = true;
-    }
-
-    fn update_tombola_uniforms(&mut self) {
-        let gl = &self.paint_data.gl;
-
-        unsafe {
             gl.use_program(Some(self.paint_data.shaders.tombola.id()));
             gl.uniform_2_f32(
                 Some(&self.translation_uniform),
-                0.0,
-                0.0,
+                self.tombola_center_x,
+                self.tombola_center_y,
             );
             gl.uniform_2_f32(
                 Some(&self.scale_uniform),
@@ -245,6 +249,8 @@ impl BingoPainter {
                 self.ball_height / tombola::BALL_SIZE,
             );
         }
+
+        self.vertices_dirty = true;
     }
 
     pub fn handle_logic_event(
@@ -269,8 +275,14 @@ impl BingoPainter {
 
             self.add_ball(
                 ball_num,
-                ball.x * self.ball_width / tombola::BALL_SIZE as f32,
-                ball.y * self.ball_height / tombola::BALL_SIZE as f32,
+                ball.x
+                    * self.ball_width
+                    / tombola::BALL_SIZE as f32
+                    + self.tombola_center_x,
+                ball.y
+                    * self.ball_height
+                    / tombola::BALL_SIZE as f32
+                    + self.tombola_center_y,
                 ball.rotation,
             );
         }
@@ -478,7 +490,7 @@ fn create_tombola_buffer(
     paint_data: &PaintData,
 ) -> Result<Rc<Buffer>, String> {
     let inner_radius = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
-    let outer_radius = inner_radius + tombola::BALL_SIZE / 2.0;
+    let outer_radius = inner_radius + SIDE_WIDTH;
     const START_ANGLE: f32 = PI / tombola::N_SIDES as f32;
     let mut vertices = Vec::with_capacity(tombola::N_SIDES as usize * 2);
 
