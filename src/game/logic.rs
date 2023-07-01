@@ -57,6 +57,8 @@ pub enum Key {
     Letter(char),
     Left,
     Right,
+    Up,
+    Down,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -87,6 +89,8 @@ pub enum Team {
 }
 
 pub const N_TEAMS: usize = 2;
+
+const MAX_SCORE: u32 = 990;
 
 static HATABLE_LETTERS: [(char, char); 12] = [
     ('C', 'Ĉ'),
@@ -262,6 +266,8 @@ impl Logic {
                 self.dead_key_queued = false;
                 self.change_page_right();
             },
+            Key::Up => self.add_to_score(10),
+            Key::Down => self.add_to_score(-10),
         }
     }
 
@@ -503,6 +509,28 @@ impl Logic {
             let old_page = self.current_page;
             self.current_page = page;
             self.queue_event_once(Event::CurrentPageChanged(old_page));
+        }
+    }
+
+    fn team_to_edit(&self) -> Team {
+        match self.current_page {
+            Page::Word => self.current_team,
+            Page::Bingo(team) => team,
+        }
+    }
+
+    fn add_to_score(&mut self, diff: i32) {
+        let team = self.team_to_edit();
+        let score = &mut self.scores[team as usize];
+
+        match score.checked_add_signed(diff) {
+            Some(new_score) => {
+                if new_score <= MAX_SCORE {
+                    *score = new_score;
+                    self.queue_event_once(Event::ScoreChanged(team));
+                }
+            },
+            None => (),
         }
     }
 
