@@ -55,11 +55,16 @@ impl AnimationPosition {
     }
 }
 
+struct TeamPainters {
+    bingo: BingoPainter,
+    score: ScorePainter,
+}
+
 pub struct GamePainter {
     paint_data: Rc<PaintData>,
-    score_painter: ScorePainter,
+    all_score_painter: ScorePainter,
     letter_painter: LetterPainter,
-    bingo_painters: [BingoPainter; logic::N_TEAMS],
+    team_painters: [TeamPainters; logic::N_TEAMS],
     width: u32,
     height: u32,
     viewport_dirty: bool,
@@ -76,14 +81,32 @@ impl GamePainter {
 
         Ok(GamePainter {
             paint_data: Rc::clone(&paint_data),
-            score_painter: ScorePainter::new(
+            all_score_painter: ScorePainter::new(
                 Rc::clone(&paint_data),
                 score_painter::TeamChoice::AllTeams,
             )?,
             letter_painter: LetterPainter::new(Rc::clone(&paint_data))?,
-            bingo_painters: [
-                BingoPainter::new(Rc::clone(&paint_data), Team::Left)?,
-                BingoPainter::new(paint_data, Team::Right)?,
+            team_painters: [
+                TeamPainters {
+                    bingo: BingoPainter::new(
+                        Rc::clone(&paint_data),
+                        Team::Left,
+                    )?,
+                    score: ScorePainter::new(
+                        Rc::clone(&paint_data),
+                        score_painter::TeamChoice::OneTeam(Team::Left),
+                    )?,
+                },
+                TeamPainters {
+                    bingo: BingoPainter::new(
+                        Rc::clone(&paint_data),
+                        Team::Right,
+                    )?,
+                    score: ScorePainter::new(
+                        Rc::clone(&paint_data),
+                        score_painter::TeamChoice::OneTeam(Team::Right),
+                    )?,
+                },
             ],
             width: 1,
             height: 1,
@@ -95,10 +118,11 @@ impl GamePainter {
     fn paint_page(&mut self, logic: &mut Logic, page: Page) -> bool {
         match page {
             Page::Bingo(team) => {
-                self.bingo_painters[team as usize].paint(logic)
+                let painters = &mut self.team_painters[team as usize];
+                painters.bingo.paint(logic) | painters.score.paint(logic)
             },
             Page::Word => {
-                self.score_painter.paint(logic)
+                self.all_score_painter.paint(logic)
                     | self.letter_painter.paint(logic)
             },
         }
@@ -165,11 +189,12 @@ impl GamePainter {
         self.width = width;
         self.height = height;
 
-        self.score_painter.update_fb_size(width, height);
+        self.all_score_painter.update_fb_size(width, height);
         self.letter_painter.update_fb_size(width, height);
 
-        for painter in self.bingo_painters.iter_mut() {
-            painter.update_fb_size(width, height);
+        for painters in self.team_painters.iter_mut() {
+            painters.bingo.update_fb_size(width, height);
+            painters.score.update_fb_size(width, height);
         }
     }
 
@@ -191,7 +216,7 @@ impl GamePainter {
 
         let animation_position = self.update_animation_position(logic);
 
-        if self.score_painter.handle_logic_event(logic, event)
+        if self.all_score_painter.handle_logic_event(logic, event)
             && animation_position.page_visible(Page::Word)
         {
             redraw_needed = true;
@@ -204,9 +229,13 @@ impl GamePainter {
         }
 
         for team in [Team::Left, Team::Right] {
-            let painter = &mut self.bingo_painters[team as usize];
+            let painters = &mut self.team_painters[team as usize];
 
-            if painter.handle_logic_event(logic, event)
+            let team_redraw_needed =
+                painters.bingo.handle_logic_event(logic, event)
+                | painters.score.handle_logic_event(logic, event);
+
+            if team_redraw_needed
                 && animation_position.page_visible(Page::Bingo(team))
             {
                 redraw_needed = true;
