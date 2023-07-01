@@ -217,7 +217,7 @@ impl ScorePainter {
             },
             logic::Event::ScoreChanged(team) => {
                 if self.team_is_visible(*team) {
-                    self.animate_score_change(*team, 0);
+                    self.vertices_dirty = true;
                     true
                 } else {
                     false
