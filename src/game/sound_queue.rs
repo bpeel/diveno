@@ -108,6 +108,7 @@ impl SoundQueue {
             logic::Event::WrongGuessEntered => {
                 self.queue_sound(Sound::BadWord, 0);
             },
+            logic::Event::GuessRejected => (),
             logic::Event::Solved => self.queue_solved(logic),
             logic::Event::ScoreChanged(_) => (),
             logic::Event::CurrentTeamChanged => (),
@@ -128,6 +129,8 @@ impl SoundQueue {
                         Sound::WrongPosition,
                     logic::LetterResult::Wrong =>
                         Sound::WrongLetter,
+                    logic::LetterResult::Rejected =>
+                        continue,
                 };
 
                 self.queue_sound(

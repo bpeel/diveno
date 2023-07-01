@@ -282,6 +282,15 @@ impl LetterPainter {
                 self.vertices_dirty = true;
                 true
             },
+            logic::Event::GuessRejected => {
+                if logic.n_guesses() >= logic::N_GUESSES && !logic.is_solved() {
+                    self.answer_start_time = Some(timer::Timer::new());
+                }
+
+                self.vertices_dirty = true;
+
+                true
+            },
             logic::Event::Solved => {
                 self.wave_start_time = Some(timer::Timer::new());
                 self.vertices_dirty = true;
@@ -416,6 +425,7 @@ impl LetterPainter {
             logic::LetterResult::Correct => [0xe7, 0x00, 0x2a],
             logic::LetterResult::WrongPosition => [0xff, 0xbd, 0x00],
             logic::LetterResult::Wrong => [0x00, 0x77, 0xc7],
+            logic::LetterResult::Rejected => [0x68, 0x68, 0x68],
         }
     }
 

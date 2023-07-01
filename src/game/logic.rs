@@ -28,6 +28,7 @@ pub enum Event {
     GridChanged,
     GuessEntered,
     WrongGuessEntered,
+    GuessRejected,
     Solved,
     ScoreChanged(Team),
     CurrentTeamChanged,
@@ -39,12 +40,16 @@ pub enum LetterResult {
     Correct,
     WrongPosition,
     Wrong,
+    // Used when a guess is rejected, for example when the word is not
+    // in the dictionary
+    Rejected,
 }
 
 #[derive(Copy, Clone)]
 pub enum Key {
     Dead,
     Backspace,
+    Delete,
     Enter,
     Space,
     Home,
@@ -226,6 +231,12 @@ impl Logic {
                     self.remove_letter();
                 }
             },
+            Key::Delete => {
+                self.dead_key_queued = false;
+                if self.current_page == Page::Word {
+                    self.reject_guess();
+                }
+            },
             Key::Space =>  {
                 self.dead_key_queued = false;
                 self.change_current_team();
@@ -298,6 +309,33 @@ impl Logic {
                 self.queue_event_once(Event::GridChanged);
             }
         }
+    }
+
+    fn reject_guess(&mut self) {
+        if self.is_solved || self.n_guesses >= N_GUESSES {
+            return;
+        }
+
+        let guess = &mut self.guesses[self.n_guesses];
+
+        guess.clear();
+        // Copy the letters from the in-progress guess into the guess.
+        // If there aren’t enough letters then pad it with spaces
+        guess.extend(
+            self.in_progress_guess
+                .chars()
+                .chain(std::iter::repeat(' '))
+                .take(self.word_length)
+                .map(|letter| {
+                    Letter { letter, result: LetterResult::Rejected }
+                })
+        );
+
+        self.in_progress_guess.clear();
+
+        self.n_guesses += 1;
+        self.queue_event_once(Event::GridChanged);
+        self.queue_event_once(Event::GuessRejected);
     }
 
     fn change_current_team(&mut self) {
