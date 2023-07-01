@@ -152,6 +152,7 @@ fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
         Keycode::Backspace => game_data.logic.press_key(logic::Key::Backspace),
         Keycode::Delete => game_data.logic.press_key(logic::Key::Delete),
         Keycode::Return => game_data.logic.press_key(logic::Key::Enter),
+        Keycode::PageDown => game_data.logic.press_key(logic::Key::PageDown),
         Keycode::Space => game_data.logic.press_key(logic::Key::Space),
         Keycode::Home => game_data.logic.press_key(logic::Key::Home),
         Keycode::Left => game_data.logic.press_key(logic::Key::Left),

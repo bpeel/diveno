@@ -35,6 +35,7 @@ The game is meant to be played with a host who makes sure the rules are followed
 | Enter | Enter the current guess. If it’s not a word in the dictionary it will be rejected. |
 | Backspace | Remove the last letter in the current guess. |
 | Delete | Reject a guess. Normally you would do this after a team suggests an invalid word before passing over to the other team. |
+| Page down | Add a letter hint. Normally you would do this before passing to the othear team. |
 | Space | Switch teams. When a word is solved the points will be added to the current team. |
 | Home | Pick a new word and reset the word grid. |
 | Left, Right | Switch between the left team bingo grid, the word puzzle and the right team bingo grid |

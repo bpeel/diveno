@@ -649,6 +649,7 @@ impl Diveno {
             "Enter" => game::logic::Key::Enter,
             "Backspace" => game::logic::Key::Backspace,
             "Delete" => game::logic::Key::Delete,
+            "PageDown" => game::logic::Key::PageDown,
             " " => game::logic::Key::Space,
             "Home" => game::logic::Key::Home,
             "Dead" => game::logic::Key::Dead,

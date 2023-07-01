@@ -51,6 +51,7 @@ pub enum Key {
     Backspace,
     Delete,
     Enter,
+    PageDown,
     Space,
     Home,
     Letter(char),
@@ -237,6 +238,12 @@ impl Logic {
                     self.reject_guess();
                 }
             },
+            Key::PageDown => {
+                self.dead_key_queued = false;
+                if self.current_page == Page::Word {
+                    self.add_hint();
+                }
+            },
             Key::Space =>  {
                 self.dead_key_queued = false;
                 self.change_current_team();
@@ -336,6 +343,41 @@ impl Logic {
         self.n_guesses += 1;
         self.queue_event_once(Event::GridChanged);
         self.queue_event_once(Event::GuessRejected);
+    }
+
+    fn add_hint(&mut self) {
+        if self.is_solved || self.n_guesses >= N_GUESSES {
+            return;
+        }
+
+        // Don’t give a hint if there’s a guess in progress because it
+        // won’t be visible and it’d be confusing
+        if !self.in_progress_guess.is_empty() {
+            return;
+        }
+
+        let n_visible_letters = self.visible_letters.count_ones() as usize;
+
+        // Don’t give a hint if it would reveal the entire word
+        if n_visible_letters + 1 >= self.word_length {
+            return;
+        }
+
+        let mut letter_num = random::random_range(
+            self.word_length - n_visible_letters
+        );
+
+        for i in 0..self.word_length {
+            if self.visible_letters & (1 << i) == 0 {
+                if letter_num == 0 {
+                    self.visible_letters |= 1 << i;
+                    break;
+                }
+                letter_num -= 1;
+            }
+        }
+
+        self.queue_event_once(Event::GridChanged);
     }
 
     fn change_current_team(&mut self) {
