@@ -270,6 +270,20 @@ impl Tombola {
             self.unfreeze_sides();
         }
     }
+
+    pub fn is_sleeping(&self) -> bool {
+        if self.spin_start_steps.is_some() {
+            return false;
+        }
+
+        for &ball_handle in self.ball_handles.iter() {
+            if !self.rigid_body_set[ball_handle].is_sleeping() {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 pub struct BallIter<'a> {

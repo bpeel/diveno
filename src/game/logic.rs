@@ -575,6 +575,10 @@ impl Logic {
         self.tombolas[team as usize].rotation()
     }
 
+    pub fn tombola_is_sleeping(&self, team: Team) -> bool {
+        self.tombolas[team as usize].is_sleeping()
+    }
+
     pub fn current_team(&self) -> Team {
         self.current_team
     }

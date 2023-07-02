@@ -197,8 +197,12 @@ impl BingoPainter {
             );
         }
 
-        self.vertices_dirty = true;
-        true
+        if logic.tombola_is_sleeping(self.team) {
+            false
+        } else {
+            self.vertices_dirty = true;
+            true
+        }
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
