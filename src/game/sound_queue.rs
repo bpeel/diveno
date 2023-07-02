@@ -113,6 +113,7 @@ impl SoundQueue {
             logic::Event::ScoreChanged(_) => (),
             logic::Event::CurrentTeamChanged => (),
             logic::Event::CurrentPageChanged(_) => (),
+            logic::Event::TombolaStartedSpinning(_) => (),
         }
     }
 

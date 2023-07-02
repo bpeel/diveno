@@ -33,6 +33,7 @@ pub enum Event {
     ScoreChanged(Team),
     CurrentTeamChanged,
     CurrentPageChanged(Page),
+    TombolaStartedSpinning(Team),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -413,6 +414,7 @@ impl Logic {
 
     fn spin_tombola(&mut self, team: Team) {
         self.tombolas[team as usize].start_spin();
+        self.queue_event_once(Event::TombolaStartedSpinning(team));
     }
 
     fn enter_guess(&mut self) {

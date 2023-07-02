@@ -260,9 +260,27 @@ impl BingoPainter {
     pub fn handle_logic_event(
         &mut self,
         _logic: &logic::Logic,
-        _event: &logic::Event,
+        event: &logic::Event,
     ) -> bool {
-        false
+        match event {
+            logic::Event::TombolaStartedSpinning(team) => {
+                if *team == self.team {
+                    self.vertices_dirty = true;
+                    true
+                } else {
+                    false
+                }
+            },
+            logic::Event::WordChanged => false,
+            logic::Event::GridChanged => false,
+            logic::Event::GuessEntered => false,
+            logic::Event::WrongGuessEntered => false,
+            logic::Event::GuessRejected => false,
+            logic::Event::Solved => false,
+            logic::Event::ScoreChanged(_) => false,
+            logic::Event::CurrentTeamChanged => false,
+            logic::Event::CurrentPageChanged(_) => false,
+        }
     }
 
     fn fill_vertices_array(

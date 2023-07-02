@@ -299,6 +299,7 @@ impl LetterPainter {
             logic::Event::ScoreChanged(_) => false,
             logic::Event::CurrentTeamChanged => false,
             logic::Event::CurrentPageChanged(_) => false,
+            logic::Event::TombolaStartedSpinning(_) => false,
         }
     }
 

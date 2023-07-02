@@ -207,6 +207,7 @@ impl ScorePainter {
             logic::Event::WrongGuessEntered => false,
             logic::Event::GuessRejected => false,
             logic::Event::CurrentPageChanged(_) => false,
+            logic::Event::TombolaStartedSpinning(_) => false,
             logic::Event::Solved => {
                 if self.team_is_visible(logic.current_team()) {
                     self.animate_solved_score_change(logic);
