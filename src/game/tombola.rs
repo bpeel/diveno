@@ -43,6 +43,13 @@ const TURN_TIME: i64 = 2000;
 // Number of turns to do before stopping
 const N_TURNS: i64 = 3;
 
+// Time to wait after spinning before moving the claw in milliseconds
+const CLAW_WAIT_TIME: i64 = 6000;
+// Speed of the claw in length units per second
+const CLAW_SPEED: f32 = APOTHEM / 2.0;
+// Maximum distance to travel away from the tombola centre
+const CLAW_MAX: f32 = APOTHEM / 0.8660254037844387 + BALL_SIZE / 2.0;
+
 pub enum BallType {
     Number(u8),
     Black,
@@ -55,12 +62,28 @@ pub struct Ball {
     pub rotation: f32,
 }
 
+enum SpinStage {
+    None,
+    Spinning(i64),
+    Waiting(i64),
+    Descending(i64),
+    Ascending {
+        start_steps: i64,
+        start_pos: f32,
+        ball: Option<usize>,
+    },
+    SlidingOut(i64, usize),
+    SlidingIn(i64),
+}
+
 pub struct Tombola {
     start_time: Timer,
     steps_executed: i64,
-    spin_start_steps: Option<i64>,
+    spin_stage: SpinStage,
 
     rotation: f32,
+    claw_x: f32,
+    claw_y: f32,
 
     rigid_body_set: RigidBodySet,
     collider_set: ColliderSet,
@@ -72,6 +95,7 @@ pub struct Tombola {
     impulse_joint_set: ImpulseJointSet,
     multibody_joint_set: MultibodyJointSet,
     ccd_solver: CCDSolver,
+    query_pipeline: QueryPipeline,
     gravity: Vector<Real>,
     ball_handles: Vec<RigidBodyHandle>,
     side_handles: Vec<RigidBodyHandle>,
@@ -96,7 +120,9 @@ impl Tombola {
                 .build();
             let ball_handle = rigid_body_set.insert(ball_body);
 
-            let collider = ColliderBuilder::ball(BALL_SIZE / 2.0).build();
+            let collider = ColliderBuilder::ball(BALL_SIZE / 2.0)
+                .user_data(ball_num as u128)
+                .build();
             collider_set.insert_with_parent(
                 collider,
                 ball_handle,
@@ -120,6 +146,7 @@ impl Tombola {
                 SIDE_LENGTH / 2.0 + SIDE_WIDTH,
                 SIDE_WIDTH / 2.0,
             ).restitution(0.7)
+                .user_data(u128::MAX)
                 .build();
             collider_set.insert_with_parent(
                 collider,
@@ -133,9 +160,11 @@ impl Tombola {
         Tombola {
             start_time: Timer::new(),
             steps_executed: 0,
-            spin_start_steps: None,
+            spin_stage: SpinStage::None,
 
             rotation: 0.0,
+            claw_x: 0.0,
+            claw_y: CLAW_MAX,
 
             rigid_body_set,
             collider_set,
@@ -147,6 +176,7 @@ impl Tombola {
             impulse_joint_set: ImpulseJointSet::new(),
             multibody_joint_set: MultibodyJointSet::new(),
             ccd_solver: CCDSolver::new(),
+            query_pipeline: QueryPipeline::new(),
             gravity: vector![0.0, -9.81],
             ball_handles,
             side_handles,
@@ -158,26 +188,193 @@ impl Tombola {
     }
 
     fn update_rotation(&mut self) -> bool {
-        match self.spin_start_steps {
-            Some(start_steps) => {
-                let executed = self.steps_executed - start_steps;
-                let n_turns = executed * 1000 / STEPS_PER_SECOND / TURN_TIME;
+        if let SpinStage::Spinning(start_steps) = self.spin_stage {
+            let executed = self.steps_executed - start_steps;
+            let n_turns = executed * 1000 / STEPS_PER_SECOND / TURN_TIME;
 
-                if n_turns >= N_TURNS {
-                    self.spin_start_steps = None;
-                    self.rotation = 0.0;
-                    self.freeze_sides();
-                } else {
-                    self.rotation = executed as f32
-                        * 1000.0
-                        / STEPS_PER_SECOND as f32
-                        / TURN_TIME as f32
-                        * 2.0 * PI
-                }
+            if n_turns >= N_TURNS {
+                self.spin_stage = SpinStage::Waiting(self.steps_executed);
+                self.rotation = 0.0;
+                self.freeze_sides();
+            } else {
+                self.rotation = executed as f32
+                    * 1000.0
+                    / STEPS_PER_SECOND as f32
+                    / TURN_TIME as f32
+                    * 2.0 * PI
+            }
 
-                true
+            true
+        } else {
+            false
+        }
+    }
+
+    fn update_claw(&mut self) {
+        match self.spin_stage {
+            SpinStage::Spinning(_) |
+            SpinStage::None => {
+                self.claw_x = 0.0;
+                self.claw_y = CLAW_MAX;
+            }
+            SpinStage::Waiting(start_steps) => {
+                self.update_waiting_claw(start_steps);
             },
-            None => false,
+            SpinStage::Descending(start_steps) => {
+                self.update_descending_claw(start_steps);
+            },
+            SpinStage::Ascending { start_steps, start_pos, ball } => {
+                self.update_ascending_claw(start_steps, start_pos, ball);
+            },
+            SpinStage::SlidingOut(start_steps, ball) => {
+                self.update_sliding_out_claw(start_steps, ball);
+            },
+            SpinStage::SlidingIn(start_steps) => {
+                self.update_sliding_in_claw(start_steps);
+            },
+        }
+    }
+
+    fn update_waiting_claw(&mut self, start_steps: i64) {
+        let millis = (self.steps_executed - start_steps)
+            * 1000
+            / STEPS_PER_SECOND;
+
+        if millis >= CLAW_WAIT_TIME {
+            self.spin_stage = SpinStage::Descending(self.steps_executed);
+        }
+    }
+
+    fn grab_ball(&self, x: f32, y: f32) -> Option<usize> {
+        let mut found_ball = None;
+
+        self.query_pipeline.intersections_with_point(
+            &self.rigid_body_set,
+            &self.collider_set,
+            &Point::new(x, y),
+            QueryFilter::default(),
+            |handle: ColliderHandle| {
+                let collider = &self.collider_set[handle];
+
+                if collider.user_data < N_BALLS as u128 {
+                    found_ball = Some(collider.user_data as usize);
+                    false
+                } else {
+                    true
+                }
+            }
+        );
+
+        found_ball
+    }
+
+    fn update_descending_claw(&mut self, start_steps: i64) {
+        let executed = self.steps_executed - start_steps;
+        let seconds = executed as f32 / STEPS_PER_SECOND as f32;
+
+        let claw_pos = CLAW_MAX - seconds * CLAW_SPEED;
+
+        if claw_pos <= -CLAW_MAX {
+            self.spin_stage = SpinStage::Ascending {
+                start_steps: self.steps_executed,
+                start_pos: -CLAW_MAX,
+                ball: None,
+            };
+            self.claw_x = 0.0;
+            self.claw_y = -CLAW_MAX;
+        } else {
+            self.claw_x = 0.0;
+            self.claw_y = claw_pos;
+
+            if let Some(ball) = self.grab_ball(0.0, claw_pos) {
+                let ball_body =
+                    &mut self.rigid_body_set[self.ball_handles[ball]];
+
+                ball_body.set_body_type(
+                    RigidBodyType::KinematicPositionBased,
+                    true,
+                );
+                ball_body.set_next_kinematic_translation(
+                    vector![0.0, claw_pos]
+                );
+
+                self.spin_stage = SpinStage::Ascending {
+                    start_steps: self.steps_executed,
+                    start_pos: claw_pos,
+                    ball: Some(ball),
+                }
+            }
+        }
+    }
+
+    fn update_ascending_claw(
+        &mut self,
+        start_steps: i64,
+        start_pos: f32,
+        ball: Option<usize>,
+    ) {
+        let executed = self.steps_executed - start_steps;
+        let seconds = executed as f32 / STEPS_PER_SECOND as f32;
+
+        let claw_pos = start_pos + seconds * CLAW_SPEED;
+
+        if claw_pos >= CLAW_MAX {
+            self.claw_x = 0.0;
+            self.claw_y = CLAW_MAX;
+            self.spin_stage = ball.map(|ball| {
+                SpinStage::SlidingOut(self.steps_executed, ball)
+            }).unwrap_or(SpinStage::None);
+        } else {
+            self.claw_x = 0.0;
+            self.claw_y = claw_pos;
+
+            if let Some(ball) = ball {
+                let ball_body =
+                    &mut self.rigid_body_set[self.ball_handles[ball]];
+
+                ball_body.set_next_kinematic_translation(
+                    vector![0.0, claw_pos]
+                );
+            }
+        }
+    }
+
+    fn update_sliding_out_claw(&mut self, start_steps: i64, ball: usize) {
+        let executed = self.steps_executed - start_steps;
+        let seconds = executed as f32 / STEPS_PER_SECOND as f32;
+        let claw_pos = seconds * CLAW_SPEED;
+
+        self.claw_y = CLAW_MAX;
+
+        let ball_body =
+            &mut self.rigid_body_set[self.ball_handles[ball]];
+
+        if claw_pos >= CLAW_MAX {
+            self.claw_x = CLAW_MAX;
+
+            ball_body.set_body_type(RigidBodyType::Dynamic, true);
+            self.spin_stage = SpinStage::SlidingIn(self.steps_executed);
+        } else {
+            self.claw_x = claw_pos;
+
+            ball_body.set_next_kinematic_translation(
+                vector![self.claw_x, self.claw_y]
+            );
+        }
+    }
+
+    fn update_sliding_in_claw(&mut self, start_steps: i64) {
+        let executed = self.steps_executed - start_steps;
+        let seconds = executed as f32 / STEPS_PER_SECOND as f32;
+        let claw_pos = CLAW_MAX - seconds * CLAW_SPEED;
+
+        self.claw_y = CLAW_MAX;
+
+        if claw_pos <= 0.0 {
+            self.claw_x = 0.0;
+            self.spin_stage = SpinStage::None;
+        } else {
+            self.claw_x = claw_pos;
         }
     }
 
@@ -219,6 +416,7 @@ impl Tombola {
         } else {
             for _ in 0..n_steps {
                 self.update_sides();
+                self.update_claw();
 
                 self.physics_pipeline.step(
                     &self.gravity,
@@ -231,7 +429,7 @@ impl Tombola {
                     &mut self.impulse_joint_set,
                     &mut self.multibody_joint_set,
                     &mut self.ccd_solver,
-                    None, // query_pipeline
+                    Some(&mut self.query_pipeline),
                     &(), // physics_hooks
                     &(), // event handler
                 );
@@ -267,14 +465,14 @@ impl Tombola {
     }
 
     pub fn start_spin(&mut self) {
-        if self.spin_start_steps.is_none() {
-            self.spin_start_steps = Some(self.steps_executed);
+        if matches!(self.spin_stage, SpinStage::None) {
+            self.spin_stage = SpinStage::Spinning(self.steps_executed);
             self.unfreeze_sides();
         }
     }
 
     pub fn is_sleeping(&self) -> bool {
-        if self.spin_start_steps.is_some() {
+        if !matches!(self.spin_stage, SpinStage::None) {
             return false;
         }
 
