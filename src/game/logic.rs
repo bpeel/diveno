@@ -226,8 +226,9 @@ impl Logic {
             Key::Dead => self.dead_key_queued = true,
             Key::Enter => {
                 self.dead_key_queued = false;
-                if self.current_page == Page::Word {
-                    self.enter_guess();
+                match self.current_page {
+                    Page::Word => self.enter_guess(),
+                    Page::Bingo(team) => self.spin_tombola(team),
                 }
             },
             Key::Backspace => {
@@ -408,6 +409,10 @@ impl Logic {
         if !self.event_queue.contains(&event) {
             self.event_queue.push_back(event);
         }
+    }
+
+    fn spin_tombola(&mut self, team: Team) {
+        self.tombolas[team as usize].start_spin();
     }
 
     fn enter_guess(&mut self) {
