@@ -513,12 +513,10 @@ fn create_tombola_buffer(
 ) -> Result<Rc<Buffer>, String> {
     let inner_radius = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
     let outer_radius = inner_radius + SIDE_WIDTH;
-    const START_ANGLE: f32 = PI / tombola::N_SIDES as f32;
     let mut vertices = Vec::with_capacity(tombola::N_SIDES as usize * 2);
 
     for side in 0..tombola::N_SIDES {
-        let angle = START_ANGLE
-            + side as f32
+        let angle = side as f32
             * 2.0 * PI
             / tombola::N_SIDES as f32;
         let sin_angle = angle.sin();

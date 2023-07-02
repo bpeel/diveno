@@ -183,7 +183,9 @@ impl Tombola {
 
     fn side_position(side_num: usize, rotation: f32) -> Isometry<Real> {
         const RADIUS: f32 = APOTHEM + SIDE_WIDTH / 2.0;
-        let angle = rotation + side_num as f32 * 2.0 * PI / N_SIDES as f32;
+        let angle = rotation
+            + (side_num as f32 + 0.5) * 2.0 * PI
+            / N_SIDES as f32;
 
         let x = -RADIUS * angle.sin();
         let y = RADIUS * angle.cos();
