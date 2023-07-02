@@ -107,7 +107,7 @@ impl Tombola {
         }));
 
         side_handles.extend((0..N_SIDES).map(|side_num| {
-            let side_body = RigidBodyBuilder::kinematic_position_based()
+            let side_body = RigidBodyBuilder::fixed()
                 .position(Tombola::side_position(side_num as usize, 0.0))
                 .build();
             let side_handle = rigid_body_set.insert(side_body);
@@ -166,6 +166,7 @@ impl Tombola {
                 if n_turns >= N_TURNS {
                     self.spin_start_steps = None;
                     self.rotation = 0.0;
+                    self.freeze_sides();
                 } else {
                     self.rotation = executed as f32
                         * 1000.0
@@ -245,9 +246,28 @@ impl Tombola {
         }
     }
 
+    fn unfreeze_sides(&mut self) {
+        for &side_handle in self.side_handles.iter() {
+            self.rigid_body_set[side_handle].set_body_type(
+                RigidBodyType::KinematicPositionBased,
+                true, // wake up
+            );
+        }
+    }
+
+    fn freeze_sides(&mut self) {
+        for &side_handle in self.side_handles.iter() {
+            self.rigid_body_set[side_handle].set_body_type(
+                RigidBodyType::Fixed,
+                false, // wake up
+            );
+        }
+    }
+
     pub fn start_spin(&mut self) {
         if self.spin_start_steps.is_none() {
             self.spin_start_steps = Some(self.steps_executed);
+            self.unfreeze_sides();
         }
     }
 }
