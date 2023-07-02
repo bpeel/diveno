@@ -40,6 +40,8 @@ const SIDE_WIDTH: f32 = 10.0;
 
 // Number of milliseconds per turn of the tombola
 const TURN_TIME: i64 = 2000;
+// Number of turns to do before stopping
+const N_TURNS: i64 = 3;
 
 pub enum BallType {
     Number(u8),
@@ -56,6 +58,9 @@ pub struct Ball {
 pub struct Tombola {
     start_time: Timer,
     steps_executed: i64,
+    spin_start_steps: Option<i64>,
+
+    rotation: f32,
 
     rigid_body_set: RigidBodySet,
     collider_set: ColliderSet,
@@ -128,6 +133,9 @@ impl Tombola {
         Tombola {
             start_time: Timer::new(),
             steps_executed: 0,
+            spin_start_steps: None,
+
+            rotation: 0.0,
 
             rigid_body_set,
             collider_set,
@@ -146,11 +154,30 @@ impl Tombola {
     }
 
     pub fn rotation(&self) -> f32 {
-        self.steps_executed as f32
-            * 1000.0
-            / STEPS_PER_SECOND as f32
-            / TURN_TIME as f32
-            * 2.0 * PI
+        self.rotation
+    }
+
+    fn update_rotation(&mut self) -> bool {
+        match self.spin_start_steps {
+            Some(start_steps) => {
+                let executed = self.steps_executed - start_steps;
+                let n_turns = executed * 1000 / STEPS_PER_SECOND / TURN_TIME;
+
+                if n_turns >= N_TURNS {
+                    self.spin_start_steps = None;
+                    self.rotation = 0.0;
+                } else {
+                    self.rotation = executed as f32
+                        * 1000.0
+                        / STEPS_PER_SECOND as f32
+                        / TURN_TIME as f32
+                        * 2.0 * PI
+                }
+
+                true
+            },
+            None => false,
+        }
     }
 
     fn side_position(side_num: usize, rotation: f32) -> Isometry<Real> {
@@ -164,10 +191,12 @@ impl Tombola {
     }
 
     fn update_sides(&mut self) {
-        let rotation = self.rotation();
+        if !self.update_rotation() {
+            return;
+        }
 
         for (side_num, &side_handle) in self.side_handles.iter().enumerate() {
-            let position = Tombola::side_position(side_num, rotation);
+            let position = Tombola::side_position(side_num, self.rotation);
             let side_body = &mut self.rigid_body_set[side_handle];
             side_body.set_next_kinematic_position(position);
         }
@@ -213,6 +242,12 @@ impl Tombola {
         BallIter {
             handle_iter: self.ball_handles.iter().enumerate(),
             rigid_body_set: &self.rigid_body_set,
+        }
+    }
+
+    pub fn start_spin(&mut self) {
+        if self.spin_start_steps.is_none() {
+            self.spin_start_steps = Some(self.steps_executed);
         }
     }
 }
