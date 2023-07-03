@@ -266,24 +266,34 @@ impl BingoPainter {
     }
 
     fn update_transform(&mut self) {
-        let inner_diameter = tombola::APOTHEM
+        let top = tombola::APOTHEM
             / (PI / tombola::N_SIDES as f32).cos()
-            * 2.0;
-        let diameter = inner_diameter + SIDE_WIDTH * 2.0;
-        // Size of a ball along the smaller axis. The tombola diameter
-        // is 1 unit along the small axis.
-        let small_size = tombola::BALL_SIZE / diameter;
+            + tombola::BALL_SIZE;
+        let bottom = tombola::LEFT_SLOPE_Y - WALL_WIDTH;
+        let left = -tombola::WALL_X - WALL_WIDTH;
+        let right = tombola::WALL_X + WALL_WIDTH;
+        let tombola_ratio = (right - left) / (top - bottom);
+        let screen_ratio = self.width as f32 / self.height as f32;
+        let ball_w;
+        let ball_h;
 
-        let (ball_w, ball_h) = if self.width < self.height {
-            (small_size, small_size * self.width as f32 / self.height as f32)
+        if tombola_ratio > screen_ratio {
+            // Fit the width
+            ball_w = tombola::BALL_SIZE / (right - left);
+            let y_axis_height = screen_ratio / tombola_ratio;
+            ball_h = tombola::BALL_SIZE / (top - bottom) * y_axis_height;
         } else {
-            (small_size * self.height as f32 / self.width as f32, small_size)
-        };
+            // Fit the height
+            ball_h = tombola::BALL_SIZE / (top - bottom);
+            let x_axis_length = tombola_ratio / screen_ratio;
+            ball_w = tombola::BALL_SIZE / (right - left) * x_axis_length;
+        }
 
         self.ball_width = ball_w;
         self.ball_height = ball_h;
         self.tombola_center_x = 0.0;
-        self.tombola_center_y = diameter / 2.0 * ball_h / tombola::BALL_SIZE;
+        self.tombola_center_y = 0.5 +
+            ((top - bottom) / 2.0 - top) * ball_h / tombola::BALL_SIZE;
 
         let gl = &self.paint_data.gl;
 
