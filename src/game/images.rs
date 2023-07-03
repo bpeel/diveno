@@ -45,15 +45,17 @@ pub struct ImageSet {
     pub segments: Texture,
     pub balls: Texture,
     pub tombola: Texture,
+    pub claw: Texture,
 }
 
-const N_IMAGES: usize = 4;
+const N_IMAGES: usize = 5;
 
 static IMAGE_FILENAMES: [&'static str; N_IMAGES] = [
     "letters.png",
     "segments.png",
     "balls.png",
     "tombola.png",
+    "claw.png",
 ];
 
 pub struct ImageLoader {
@@ -98,6 +100,7 @@ impl ImageLoader {
             segments,
             balls,
             tombola,
+            claw,
         ] = self.textures.map(|s| s.unwrap());
 
         ImageSet {
@@ -105,6 +108,7 @@ impl ImageLoader {
             segments,
             balls,
             tombola,
+            claw,
         }
     }
 }

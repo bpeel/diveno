@@ -28,9 +28,15 @@ const N_BALLS_TEX_X: u32 = 11;
 const N_BALLS_TEX_Y: u32 = 3;
 
 const N_TOMBOLA_ELEMENTS: usize = (tombola::N_SIDES as usize + 1) * 2;
+const FIRST_CLAW_VERTEX: usize = tombola::N_SIDES as usize * 2;
+const N_CLAW_VERTICES: usize = 4;
 
 // Width of the side of the tombola, in the same units as the tombola module
 const SIDE_WIDTH: f32 = tombola::BALL_SIZE / 2.0;
+
+// Dimensions of the claw in the same units as the tombola module
+const CLAW_WIDTH: f32 = tombola::BALL_SIZE / 63.7 * 83.328;
+const CLAW_HEIGHT: f32 = CLAW_WIDTH * 2.0;
 
 #[repr(C)]
 struct Vertex {
@@ -185,6 +191,13 @@ impl BingoPainter {
             );
 
             gl.use_program(Some(self.paint_data.shaders.tombola.id()));
+
+            gl.uniform_2_f32(
+                Some(&self.translation_uniform),
+                self.tombola_center_x,
+                self.tombola_center_y,
+            );
+
             gl.uniform_1_f32(
                 Some(&self.rotation_uniform),
                 logic.tombola_rotation(self.team),
@@ -195,6 +208,35 @@ impl BingoPainter {
                 glow::UNSIGNED_BYTE,
                 0, // offset
             );
+
+            gl.enable(glow::BLEND);
+
+            gl.bind_texture(
+                glow::TEXTURE_2D,
+                Some(self.paint_data.images.claw.id()),
+            );
+
+            let (claw_x, claw_y) = logic.claw_pos(self.team);
+
+            gl.uniform_2_f32(
+                Some(&self.translation_uniform),
+                self.tombola_center_x
+                    + claw_x / tombola::BALL_SIZE * self.ball_width,
+                self.tombola_center_y
+                    + claw_y / tombola::BALL_SIZE * self.ball_height,
+            );
+
+            gl.uniform_1_f32(
+                Some(&self.rotation_uniform),
+                0.0,
+            );
+            gl.draw_arrays(
+                glow::TRIANGLE_STRIP,
+                FIRST_CLAW_VERTEX as i32,
+                N_CLAW_VERTICES as i32,
+            );
+
+            gl.disable(glow::BLEND);
         }
 
         if logic.tombola_is_sleeping(self.team) {
@@ -242,11 +284,6 @@ impl BingoPainter {
             );
 
             gl.use_program(Some(self.paint_data.shaders.tombola.id()));
-            gl.uniform_2_f32(
-                Some(&self.translation_uniform),
-                self.tombola_center_x,
-                self.tombola_center_y,
-            );
             gl.uniform_2_f32(
                 Some(&self.scale_uniform),
                 self.ball_width / tombola::BALL_SIZE,
@@ -508,12 +545,44 @@ struct TombolaVertex {
     t: u16,
 }
 
+fn add_claw_vertices(vertices: &mut Vec<TombolaVertex>) {
+    let x1 = -CLAW_WIDTH / 2.0;
+    let x2 = CLAW_WIDTH / 2.0;
+    let y1 = CLAW_HEIGHT;
+    let y2 = 0.0;
+
+    vertices.push(TombolaVertex {
+        x: x1,
+        y: y1,
+        s: 0,
+        t: 0,
+    });
+    vertices.push(TombolaVertex {
+        x: x1,
+        y: y2,
+        s: 0,
+        t: 65535,
+    });
+    vertices.push(TombolaVertex {
+        x: x2,
+        y: y1,
+        s: 65535,
+        t: 0,
+    });
+    vertices.push(TombolaVertex {
+        x: x2,
+        y: y2,
+        s: 65535,
+        t: 65535,
+    });
+}
+
 fn create_tombola_buffer(
     paint_data: &PaintData,
 ) -> Result<Rc<Buffer>, String> {
     let inner_radius = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
     let outer_radius = inner_radius + SIDE_WIDTH;
-    let mut vertices = Vec::with_capacity(tombola::N_SIDES as usize * 2);
+    let mut vertices = Vec::with_capacity(FIRST_CLAW_VERTEX + N_CLAW_VERTICES);
 
     for side in 0..tombola::N_SIDES {
         let angle = side as f32
@@ -536,7 +605,9 @@ fn create_tombola_buffer(
         });
     }
 
-    assert_eq!(vertices.len(), tombola::N_SIDES as usize * 2);
+    add_claw_vertices(&mut vertices);
+
+    assert_eq!(vertices.len(), FIRST_CLAW_VERTEX + N_CLAW_VERTICES);
 
     let buffer = Buffer::new(Rc::clone(&paint_data.gl))?;
 
