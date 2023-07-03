@@ -484,6 +484,10 @@ impl Tombola {
 
         true
     }
+
+    pub fn claw_pos(&self) -> (f32, f32) {
+        (self.claw_x, self.claw_y)
+    }
 }
 
 pub struct BallIter<'a> {
