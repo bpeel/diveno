@@ -30,6 +30,8 @@ const N_BALLS_TEX_Y: u32 = 3;
 const N_TOMBOLA_ELEMENTS: usize = (tombola::N_SIDES as usize + 1) * 2;
 const FIRST_CLAW_VERTEX: usize = tombola::N_SIDES as usize * 2;
 const N_CLAW_VERTICES: usize = 4;
+const FIRST_WALL_VERTEX: usize = FIRST_CLAW_VERTEX + N_CLAW_VERTICES;
+const N_WALL_VERTICES: usize = 8;
 
 // Width of the side of the tombola, in the same units as the tombola module
 const SIDE_WIDTH: f32 = tombola::BALL_SIZE / 2.0;
@@ -37,6 +39,9 @@ const SIDE_WIDTH: f32 = tombola::BALL_SIZE / 2.0;
 // Dimensions of the claw in the same units as the tombola module
 const CLAW_WIDTH: f32 = tombola::BALL_SIZE / 63.7 * 83.328;
 const CLAW_HEIGHT: f32 = CLAW_WIDTH * 2.0;
+
+// Width of the walls to the sides of the tombola and the slope
+const WALL_WIDTH: f32 = SIDE_WIDTH;
 
 #[repr(C)]
 struct Vertex {
@@ -209,6 +214,17 @@ impl BingoPainter {
                 0, // offset
             );
 
+            gl.uniform_1_f32(
+                Some(&self.rotation_uniform),
+                0.0,
+            );
+
+            gl.draw_arrays(
+                glow::TRIANGLE_STRIP,
+                FIRST_WALL_VERTEX as i32,
+                N_WALL_VERTICES as i32,
+            );
+
             gl.enable(glow::BLEND);
 
             gl.bind_texture(
@@ -226,10 +242,6 @@ impl BingoPainter {
                     + claw_y / tombola::BALL_SIZE * self.ball_height,
             );
 
-            gl.uniform_1_f32(
-                Some(&self.rotation_uniform),
-                0.0,
-            );
             gl.draw_arrays(
                 glow::TRIANGLE_STRIP,
                 FIRST_CLAW_VERTEX as i32,
@@ -577,6 +589,59 @@ fn add_claw_vertices(vertices: &mut Vec<TombolaVertex>) {
     });
 }
 
+fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
+    let wall_top = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
+
+    vertices.push(TombolaVertex {
+        x: tombola::WALL_X + WALL_WIDTH,
+        y: wall_top,
+        s: 32768,
+        t: 65535,
+    });
+    vertices.push(TombolaVertex {
+        x: tombola::WALL_X,
+        y: wall_top,
+        s: 32768,
+        t: 0,
+    });
+    vertices.push(TombolaVertex {
+        x: tombola::WALL_X + WALL_WIDTH,
+        y: tombola::RIGHT_SLOPE_Y - WALL_WIDTH,
+        s: 32768,
+        t: 65535,
+    });
+    vertices.push(TombolaVertex {
+        x: tombola::WALL_X,
+        y: tombola::RIGHT_SLOPE_Y,
+        s: 32768,
+        t: 0,
+    });
+    vertices.push(TombolaVertex {
+        x: -tombola::WALL_X - WALL_WIDTH,
+        y: tombola::LEFT_SLOPE_Y - WALL_WIDTH,
+        s: 32768,
+        t: 65535,
+    });
+    vertices.push(TombolaVertex {
+        x: -tombola::WALL_X,
+        y: tombola::LEFT_SLOPE_Y,
+        s: 32768,
+        t: 0,
+    });
+    vertices.push(TombolaVertex {
+        x: -tombola::WALL_X - WALL_WIDTH,
+        y: tombola::LEFT_SLOPE_Y + tombola::BALL_SIZE,
+        s: 32768,
+        t: 65535,
+    });
+    vertices.push(TombolaVertex {
+        x: -tombola::WALL_X,
+        y: tombola::LEFT_SLOPE_Y + tombola::BALL_SIZE,
+        s: 32768,
+        t: 0,
+    });
+}
+
 fn create_tombola_buffer(
     paint_data: &PaintData,
 ) -> Result<Rc<Buffer>, String> {
@@ -606,8 +671,9 @@ fn create_tombola_buffer(
     }
 
     add_claw_vertices(&mut vertices);
+    add_wall_vertices(&mut vertices);
 
-    assert_eq!(vertices.len(), FIRST_CLAW_VERTEX + N_CLAW_VERTICES);
+    assert_eq!(vertices.len(), FIRST_WALL_VERTEX + N_WALL_VERTICES);
 
     let buffer = Buffer::new(Rc::clone(&paint_data.gl))?;
 
