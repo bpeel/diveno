@@ -600,7 +600,8 @@ fn add_claw_vertices(vertices: &mut Vec<TombolaVertex>) {
 }
 
 fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
-    let wall_top = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
+    let wall_top = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos()
+        + tombola::BALL_SIZE * 2.0;
 
     vertices.push(TombolaVertex {
         x: tombola::WALL_X + WALL_WIDTH,
