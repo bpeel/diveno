@@ -268,7 +268,7 @@ impl BingoPainter {
     fn update_transform(&mut self) {
         let top = tombola::APOTHEM
             / (PI / tombola::N_SIDES as f32).cos()
-            + tombola::BALL_SIZE;
+            + tombola::BALL_SIZE * 2.0;
         let bottom = tombola::LEFT_SLOPE_Y - WALL_WIDTH;
         let left = -tombola::WALL_X - WALL_WIDTH;
         let right = tombola::WALL_X + WALL_WIDTH;
