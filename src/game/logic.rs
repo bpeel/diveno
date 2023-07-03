@@ -581,6 +581,10 @@ impl Logic {
         self.tombolas[team as usize].is_sleeping()
     }
 
+    pub fn claw_pos(&self, team: Team) -> (f32, f32) {
+        self.tombolas[team as usize].claw_pos()
+    }
+
     pub fn current_team(&self) -> Team {
         self.current_team
     }
