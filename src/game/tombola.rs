@@ -48,7 +48,18 @@ const CLAW_WAIT_TIME: i64 = 6000;
 // Speed of the claw in length units per second
 const CLAW_SPEED: f32 = APOTHEM / 2.0;
 // Maximum distance to travel away from the tombola centre
-const CLAW_MAX: f32 = APOTHEM / 0.8660254037844387 + BALL_SIZE / 2.0;
+const CLAW_MAX: f32 = APOTHEM / 0.8660254037844387
+    + SIDE_WIDTH / 2.0
+    + BALL_SIZE / 2.0;
+// Where to position the walls at the sides the tombola to catch the balls
+pub const WALL_X: f32 = CLAW_MAX + BALL_SIZE;
+// Y position of the sides of the slope
+const MIDDLE_SLOPE_Y: f32 = -APOTHEM / 0.8660254037844387
+    - SIDE_WIDTH
+    - BALL_SIZE * 1.1;
+pub const RIGHT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y + BALL_SIZE;
+pub const LEFT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y - BALL_SIZE * 2.0;
+const SLOPE_WIDTH: f32 = BALL_SIZE;
 
 pub enum BallType {
     Number(u8),
@@ -156,6 +167,8 @@ impl Tombola {
 
             side_handle
         }));
+
+        add_walls(&mut collider_set);
 
         Tombola {
             start_time: Timer::new(),
@@ -567,4 +580,33 @@ impl Iterator for HexagonalPacker {
 
         Some((x * self.radius * 2.0, y * self.vertical_distance))
     }
+}
+
+fn add_walls(collider_set: &mut ColliderSet) {
+    let collider = ColliderBuilder::cuboid(APOTHEM, APOTHEM * 2.0)
+        .user_data(u128::MAX)
+        .translation(vector![WALL_X + APOTHEM, 0.0])
+        .build();
+    collider_set.insert(collider);
+
+    let collider = ColliderBuilder::cuboid(APOTHEM, APOTHEM * 2.0)
+        .user_data(u128::MAX)
+        .translation(vector![-WALL_X - APOTHEM, 0.0])
+        .build();
+    collider_set.insert(collider);
+
+    let slope_angle = ((RIGHT_SLOPE_Y - LEFT_SLOPE_Y) / (WALL_X * 2.0)).atan();
+    let slope_middle_top = (RIGHT_SLOPE_Y + LEFT_SLOPE_Y) / 2.0;
+    let slope_y = slope_middle_top
+        - SLOPE_WIDTH / 2.0 * (PI / 2.0 - slope_angle).sin();
+    let slope_length = (RIGHT_SLOPE_Y - LEFT_SLOPE_Y) / slope_angle.sin();
+
+    let collider = ColliderBuilder::cuboid(
+        slope_length / 2.0,
+        SLOPE_WIDTH / 2.0,
+    ).user_data(u128::MAX)
+        .translation(vector![0.0, slope_y])
+        .rotation(slope_angle)
+        .build();
+    collider_set.insert(collider);
 }
