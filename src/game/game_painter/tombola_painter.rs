@@ -27,7 +27,7 @@ const N_BALLS_TEX_X: u32 = 11;
 // Number of balls in a column of the ball texture
 const N_BALLS_TEX_Y: u32 = 3;
 
-const N_TOMBOLA_ELEMENTS: usize = (tombola::N_SIDES as usize + 1) * 2;
+const N_SIDES_ELEMENTS: usize = (tombola::N_SIDES as usize + 1) * 2;
 const FIRST_CLAW_VERTEX: usize = tombola::N_SIDES as usize * 2;
 const N_CLAW_VERTICES: usize = 4;
 const FIRST_WALL_VERTEX: usize = FIRST_CLAW_VERTEX + N_CLAW_VERTICES;
@@ -54,11 +54,11 @@ struct Vertex {
     rotation: u16,
 }
 
-pub struct BingoPainter {
+pub struct TombolaPainter {
     team: logic::Team,
     buffer: Rc<Buffer>,
-    array_object: ArrayObject,
-    tombola_array_object: ArrayObject,
+    balls_array_object: ArrayObject,
+    sides_array_object: ArrayObject,
     paint_data: Rc<PaintData>,
     width: u32,
     height: u32,
@@ -78,13 +78,13 @@ pub struct BingoPainter {
     most_quads: u32,
 }
 
-impl BingoPainter {
+impl TombolaPainter {
     pub fn new(
         paint_data: Rc<PaintData>,
         team: logic::Team,
-    ) -> Result<BingoPainter, String> {
+    ) -> Result<TombolaPainter, String> {
         let buffer = create_vertex_buffer(&paint_data)?;
-        let array_object = create_array_object(
+        let balls_array_object = create_array_object(
             Rc::clone(&paint_data),
             Rc::clone(&buffer),
         )?;
@@ -128,11 +128,11 @@ impl BingoPainter {
             }
         };
 
-        Ok(BingoPainter {
+        Ok(TombolaPainter {
             team,
             buffer,
-            array_object,
-            tombola_array_object: create_tombola_array_object(&paint_data)?,
+            balls_array_object,
+            sides_array_object: create_sides_array_object(&paint_data)?,
             paint_data,
             width: 1,
             height: 1,
@@ -164,7 +164,7 @@ impl BingoPainter {
             self.vertices_dirty = false;
         }
 
-        self.array_object.bind();
+        self.balls_array_object.bind();
 
         let gl = &self.paint_data.gl;
 
@@ -188,7 +188,7 @@ impl BingoPainter {
 
             gl.disable(glow::BLEND);
 
-            self.tombola_array_object.bind();
+            self.sides_array_object.bind();
 
             gl.bind_texture(
                 glow::TEXTURE_2D,
@@ -209,7 +209,7 @@ impl BingoPainter {
             );
             gl.draw_elements(
                 glow::TRIANGLE_STRIP,
-                N_TOMBOLA_ELEMENTS as i32,
+                N_SIDES_ELEMENTS as i32,
                 glow::UNSIGNED_BYTE,
                 0, // offset
             );
@@ -387,11 +387,11 @@ impl BingoPainter {
         y: f32,
         rotation: f32,
     ) {
-        let (s1, s2) = BingoPainter::axis_tex_coord_for_ball(
+        let (s1, s2) = TombolaPainter::axis_tex_coord_for_ball(
             ball_num % N_BALLS_TEX_X,
             N_BALLS_TEX_X,
         );
-        let (t1, t2) = BingoPainter::axis_tex_coord_for_ball(
+        let (t1, t2) = TombolaPainter::axis_tex_coord_for_ball(
             ball_num / N_BALLS_TEX_X,
             N_BALLS_TEX_Y,
         );
@@ -453,7 +453,7 @@ impl BingoPainter {
 
         if n_quads > self.most_quads {
             match self.paint_data.quad_tool.set_element_buffer(
-                &mut self.array_object,
+                &mut self.balls_array_object,
                 n_quads,
             ) {
                 Ok(most_quads) => self.most_quads = most_quads,
@@ -724,11 +724,11 @@ fn create_tombola_buffer(
     Ok(Rc::new(buffer))
 }
 
-fn set_tombola_element_buffer(
+fn set_sides_element_buffer(
     paint_data: &PaintData,
     array_object: &mut ArrayObject,
 ) -> Result<(), String> {
-    let mut elements = Vec::with_capacity(N_TOMBOLA_ELEMENTS);
+    let mut elements = Vec::with_capacity(N_SIDES_ELEMENTS);
 
     for side in 0..tombola::N_SIDES as u8 {
         elements.push(side * 2);
@@ -738,7 +738,7 @@ fn set_tombola_element_buffer(
     elements.push(0);
     elements.push(1);
 
-    assert_eq!(elements.len(), N_TOMBOLA_ELEMENTS);
+    assert_eq!(elements.len(), N_SIDES_ELEMENTS);
 
     let buffer = Rc::new(Buffer::new(Rc::clone(&paint_data.gl))?);
     array_object.set_element_buffer(buffer);
@@ -754,7 +754,7 @@ fn set_tombola_element_buffer(
     Ok(())
 }
 
-fn create_tombola_array_object(
+fn create_sides_array_object(
     paint_data: &Rc<PaintData>
 ) -> Result<ArrayObject, String> {
     let buffer = create_tombola_buffer(paint_data)?;
@@ -783,7 +783,7 @@ fn create_tombola_array_object(
         offset,
     );
 
-    set_tombola_element_buffer(&paint_data, &mut array_object)?;
+    set_sides_element_buffer(&paint_data, &mut array_object)?;
 
     Ok(array_object)
 }

@@ -16,13 +16,13 @@
 
 mod letter_painter;
 mod score_painter;
-mod bingo_painter;
+mod tombola_painter;
 
 use std::rc::Rc;
 use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
-use bingo_painter::BingoPainter;
+use tombola_painter::TombolaPainter;
 use super::{logic, timer};
 use logic::{Team, Page, Logic};
 use glow::HasContext;
@@ -56,7 +56,7 @@ impl AnimationPosition {
 }
 
 struct TeamPainters {
-    bingo: BingoPainter,
+    tombola: TombolaPainter,
     score: ScorePainter,
 }
 
@@ -88,7 +88,7 @@ impl GamePainter {
             letter_painter: LetterPainter::new(Rc::clone(&paint_data))?,
             team_painters: [
                 TeamPainters {
-                    bingo: BingoPainter::new(
+                    tombola: TombolaPainter::new(
                         Rc::clone(&paint_data),
                         Team::Left,
                     )?,
@@ -98,7 +98,7 @@ impl GamePainter {
                     )?,
                 },
                 TeamPainters {
-                    bingo: BingoPainter::new(
+                    tombola: TombolaPainter::new(
                         Rc::clone(&paint_data),
                         Team::Right,
                     )?,
@@ -119,7 +119,7 @@ impl GamePainter {
         match page {
             Page::Bingo(team) => {
                 let painters = &mut self.team_painters[team as usize];
-                painters.bingo.paint(logic) | painters.score.paint(logic)
+                painters.tombola.paint(logic) | painters.score.paint(logic)
             },
             Page::Word => {
                 self.all_score_painter.paint(logic)
@@ -193,7 +193,7 @@ impl GamePainter {
         self.letter_painter.update_fb_size(width, height);
 
         for painters in self.team_painters.iter_mut() {
-            painters.bingo.update_fb_size(width, height);
+            painters.tombola.update_fb_size(width, height);
             painters.score.update_fb_size(width, height);
         }
     }
@@ -232,7 +232,7 @@ impl GamePainter {
             let painters = &mut self.team_painters[team as usize];
 
             let team_redraw_needed =
-                painters.bingo.handle_logic_event(logic, event)
+                painters.tombola.handle_logic_event(logic, event)
                 | painters.score.handle_logic_event(logic, event);
 
             if team_redraw_needed
