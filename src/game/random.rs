@@ -29,3 +29,13 @@ pub fn random_range(max: usize) -> usize {
         (js_sys::Math::random() * max as f64).floor() as usize
     }
 }
+
+pub fn shuffle<T>(slice: &mut [T]) {
+    for i in (1..slice.len()).rev() {
+        let j = random_range(i + 1);
+        if i != j {
+            let (a, b) = slice.split_at_mut(i);
+            std::mem::swap(&mut a[j], &mut b[0]);
+        }
+    }
+}
