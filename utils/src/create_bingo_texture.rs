@@ -22,22 +22,12 @@ const SPACES_Y: u32 = 4;
 const BINGO: &'static str = "BINGO";
 
 const SPACE_SIZE: u32 = 128;
-const BORDER_SIZE: f64 = SPACE_SIZE as f64 * 0.08;
 
 fn generate_space(
     cr: &cairo::Context,
     text: &str,
 ) -> Result<(), cairo::Error> {
     cr.save()?;
-
-    cr.rectangle(
-        BORDER_SIZE,
-        BORDER_SIZE,
-        SPACE_SIZE as f64 - BORDER_SIZE * 2.0,
-        SPACE_SIZE as f64 - BORDER_SIZE * 2.0,
-    );
-    cr.set_source_rgb(0.0, 1.0, 0.0);
-    cr.fill()?;
 
     cr.set_font_size(SPACE_SIZE as f64 * 0.7);
     cr.select_font_face(
@@ -101,7 +91,7 @@ fn generate_texture() -> Result<cairo::ImageSurface, cairo::Error> {
     let cr = cairo::Context::new(&surface)?;
 
     cr.save()?;
-    cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
+    cr.set_source_rgba(0.0, 1.0, 0.0, 1.0);
     cr.set_operator(cairo::Operator::Source);
     cr.paint()?;
     cr.restore()?;
