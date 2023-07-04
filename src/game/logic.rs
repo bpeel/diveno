@@ -16,13 +16,15 @@
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use super::{letter_texture, random, tombola};
+use super::{letter_texture, random, tombola, bingo_grid};
 use super::dictionary::Dictionary;
 use tombola::Tombola;
+use bingo_grid::BingoGrid;
 
 pub const N_GUESSES: usize = 6;
 
-const N_NUMBER_BALLS: usize = 17;
+const N_NUMBER_BALLS: usize = bingo_grid::N_SPACES
+    - bingo_grid::N_INITIAL_SPACES_COVERED;
 const N_BLACK_BALLS: usize = 3;
 const N_BALLS: usize = N_NUMBER_BALLS + N_BLACK_BALLS;
 
@@ -135,6 +137,7 @@ pub struct Logic {
     n_guesses: usize,
     scores: [u32; N_TEAMS],
     tombolas: [Tombola; N_TEAMS],
+    bingo_grids: [BingoGrid; N_TEAMS],
     current_team: Team,
     event_queue: VecDeque<Event>,
     letter_counter: LetterCounter,
@@ -159,6 +162,7 @@ impl Logic {
             n_guesses: 0,
             scores: Default::default(),
             tombolas: [Tombola::new(N_BALLS), Tombola::new(N_BALLS)],
+            bingo_grids: Default::default(),
             current_team: Team::Left,
             event_queue: VecDeque::new(),
             letter_counter: LetterCounter::new(),
@@ -168,6 +172,10 @@ impl Logic {
         };
 
         logic.pick_word();
+
+        for bingo_grid in logic.bingo_grids.iter_mut() {
+            bingo_grid.reset();
+        }
 
         logic
     }
@@ -587,7 +595,8 @@ impl Logic {
 
     pub fn balls(&self, team: Team) -> BallIter {
         BallIter {
-            iter: self.tombolas[team as usize].balls()
+            iter: self.tombolas[team as usize].balls(),
+            bingo_grid: &self.bingo_grids[team as usize],
         }
     }
 
@@ -634,6 +643,7 @@ impl<'a> GuessIter<'a> {
 
 pub struct BallIter<'a> {
     iter: tombola::BallIter<'a>,
+    bingo_grid: &'a BingoGrid,
 }
 
 impl<'a> Iterator for BallIter<'a> {
@@ -642,7 +652,8 @@ impl<'a> Iterator for BallIter<'a> {
     fn next(&mut self) -> Option<Ball> {
         self.iter.next().map(|ball| {
             let ball_type = if (ball.ball_index as usize) < N_NUMBER_BALLS {
-                BallType::Number(ball.ball_index)
+                let space = self.bingo_grid.space(ball.ball_index as usize);
+                BallType::Number(space.ball as u32)
             } else {
                 BallType::Black
             };
