@@ -29,3 +29,4 @@ pub mod random;
 pub mod timing;
 pub mod sound_queue;
 pub mod tombola;
+pub mod bingo_grid;
