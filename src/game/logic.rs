@@ -22,6 +22,10 @@ use tombola::Tombola;
 
 pub const N_GUESSES: usize = 6;
 
+const N_NUMBER_BALLS: usize = 17;
+const N_BLACK_BALLS: usize = 3;
+const N_BALLS: usize = N_NUMBER_BALLS + N_BLACK_BALLS;
+
 #[derive(PartialEq, Eq)]
 pub enum Event {
     WordChanged,
@@ -89,6 +93,18 @@ pub enum Team {
     Right,
 }
 
+pub enum BallType {
+    Number(u32),
+    Black,
+}
+
+pub struct Ball {
+    pub ball_type: BallType,
+    pub x: f32,
+    pub y: f32,
+    pub rotation: f32,
+}
+
 pub const N_TEAMS: usize = 2;
 
 const MAX_SCORE: u32 = 990;
@@ -142,7 +158,7 @@ impl Logic {
             guesses: Default::default(),
             n_guesses: 0,
             scores: Default::default(),
-            tombolas: [Tombola::new(), Tombola::new()],
+            tombolas: [Tombola::new(N_BALLS), Tombola::new(N_BALLS)],
             current_team: Team::Left,
             event_queue: VecDeque::new(),
             letter_counter: LetterCounter::new(),
@@ -569,8 +585,10 @@ impl Logic {
         self.tombolas[team as usize].step();
     }
 
-    pub fn balls(&self, team: Team) -> tombola::BallIter {
-        self.tombolas[team as usize].balls()
+    pub fn balls(&self, team: Team) -> BallIter {
+        BallIter {
+            iter: self.tombolas[team as usize].balls()
+        }
     }
 
     pub fn tombola_rotation(&self, team: Team) -> f32 {
@@ -611,6 +629,31 @@ impl<'a> GuessIter<'a> {
         GuessIter {
             iter: logic.guesses[0..logic.n_guesses].iter()
         }
+    }
+}
+
+pub struct BallIter<'a> {
+    iter: tombola::BallIter<'a>,
+}
+
+impl<'a> Iterator for BallIter<'a> {
+    type Item = Ball;
+
+    fn next(&mut self) -> Option<Ball> {
+        self.iter.next().map(|ball| {
+            let ball_type = if (ball.ball_index as usize) < N_NUMBER_BALLS {
+                BallType::Number(ball.ball_index)
+            } else {
+                BallType::Black
+            };
+
+            Ball {
+                ball_type,
+                x: ball.x,
+                y: ball.y,
+                rotation: ball.rotation,
+            }
+        })
     }
 }
 

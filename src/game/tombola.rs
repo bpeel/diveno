@@ -18,9 +18,6 @@ use rapier2d::prelude::*;
 use super::timer::Timer;
 use std::f32::consts::PI;
 
-pub const N_NUMBER_BALLS: usize = 17;
-pub const N_BLACK_BALLS: usize = 3;
-pub const N_BALLS: usize = N_NUMBER_BALLS + N_BLACK_BALLS;
 pub const BALL_SIZE: f32 = 12.0;
 const STEPS_PER_SECOND: i64 = 60;
 
@@ -61,13 +58,8 @@ pub const RIGHT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y + BALL_SIZE;
 pub const LEFT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y - BALL_SIZE * 2.0;
 const SLOPE_WIDTH: f32 = BALL_SIZE;
 
-pub enum BallType {
-    Number(u8),
-    Black,
-}
-
 pub struct Ball {
-    pub ball_type: BallType,
+    pub ball_index: u32,
     pub x: f32,
     pub y: f32,
     pub rotation: f32,
@@ -113,16 +105,16 @@ pub struct Tombola {
 }
 
 impl Tombola {
-    pub fn new() -> Tombola {
+    pub fn new(n_balls: usize) -> Tombola {
         let mut rigid_body_set = RigidBodySet::new();
         let mut collider_set = ColliderSet::new();
-        let mut ball_handles = Vec::with_capacity(N_BALLS);
+        let mut ball_handles = Vec::with_capacity(n_balls);
         let mut side_handles = Vec::with_capacity(N_SIDES as usize);
 
         let packer = HexagonalPacker::new(
             BALL_SIZE / 2.0,
-            (N_BALLS as f32).sqrt().round() as u32,
-        ).take(N_BALLS);
+            (n_balls as f32).sqrt().round() as u32,
+        ).take(n_balls);
 
         ball_handles.extend(packer.enumerate().map(|(ball_num, (x, y))| {
             let ball_body = RigidBodyBuilder::dynamic()
@@ -269,7 +261,7 @@ impl Tombola {
             |handle: ColliderHandle| {
                 let collider = &self.collider_set[handle];
 
-                if collider.user_data < N_BALLS as u128 {
+                if collider.user_data != u128::MAX {
                     found_ball = Some(collider.user_data as usize);
                     false
                 } else {
@@ -512,18 +504,12 @@ impl<'a> Iterator for BallIter<'a> {
     type Item = Ball;
 
     fn next(&mut self) -> Option<Ball> {
-        self.handle_iter.next().map(|(ball_num, &ball_handle)| {
-            let ball_type = if ball_num < N_NUMBER_BALLS {
-                BallType::Number(ball_num as u8 + 1)
-            } else {
-                BallType::Black
-            };
-
+        self.handle_iter.next().map(|(ball_index, &ball_handle)| {
             let ball_body = &self.rigid_body_set[ball_handle];
             let translation = ball_body.translation();
 
             Ball {
-                ball_type,
+                ball_index: ball_index as u32,
                 x: translation.x,
                 y: translation.y,
                 rotation: ball_body.rotation().angle(),

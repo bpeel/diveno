@@ -350,8 +350,8 @@ impl TombolaPainter {
 
         for ball in logic.balls(self.team) {
             let ball_num = match ball.ball_type {
-                tombola::BallType::Number(n) => n as u32 - 1,
-                tombola::BallType::Black => 25,
+                logic::BallType::Number(n) => n,
+                logic::BallType::Black => 25,
             };
 
             self.add_ball(
