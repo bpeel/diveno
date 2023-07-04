@@ -8,6 +8,10 @@ name = "create-tile-texture"
 path = "src/create_tile_texture.rs"
 
 [[bin]]
+name = "create-bingo-texture"
+path = "src/create_bingo_texture.rs"
+
+[[bin]]
 name = "create-ball-texture"
 path = "src/create_ball_texture.rs"
 
