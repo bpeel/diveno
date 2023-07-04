@@ -258,20 +258,22 @@ impl GamePainter {
                 if delta >= 1.0 {
                     self.page_animation = None;
                     AnimationPosition::OnePage(current_page)
-                } else if current_page.position() < start_page.position() {
+                } else {
                     // Ease-in cubic
                     let delta = delta * delta * delta;
 
-                    AnimationPosition::TwoPages {
-                        left: current_page,
-                        right: start_page,
-                        delta: 1.0 - delta,
-                    }
-                } else {
-                    AnimationPosition::TwoPages {
-                        left: start_page,
-                        right: current_page,
-                        delta: delta,
+                    if current_page.position() < start_page.position() {
+                        AnimationPosition::TwoPages {
+                            left: current_page,
+                            right: start_page,
+                            delta: 1.0 - delta,
+                        }
+                    } else {
+                        AnimationPosition::TwoPages {
+                            left: start_page,
+                            right: current_page,
+                            delta: delta,
+                        }
                     }
                 }
             },
