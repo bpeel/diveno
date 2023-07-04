@@ -603,6 +603,22 @@ fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
     let wall_top = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos()
         + tombola::BALL_SIZE * 2.0;
 
+    // Work out the angle of the slope
+    let height_diff = tombola::RIGHT_SLOPE_Y - tombola::LEFT_SLOPE_Y;
+    let angle = (height_diff / (tombola::WALL_X * 2.0)).atan();
+
+    // Vertical offset from a point on the top line to the bottom line
+    let vertical_offset = WALL_WIDTH / angle.cos();
+
+    // The equation of the bottom line of the slope so we can work out
+    // where to put the bottom vertices of the corners where it joins
+    // the wall.
+    let m = height_diff / (tombola::WALL_X * 2.0);
+    let c = (tombola::RIGHT_SLOPE_Y + tombola::LEFT_SLOPE_Y) / 2.0
+        - vertical_offset;
+    let bottom_left_y = m * (-tombola::WALL_X - WALL_WIDTH) + c;
+    let bottom_right_y = m * (tombola::WALL_X + WALL_WIDTH) + c;
+
     vertices.push(TombolaVertex {
         x: tombola::WALL_X + WALL_WIDTH,
         y: wall_top,
@@ -617,7 +633,7 @@ fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
     });
     vertices.push(TombolaVertex {
         x: tombola::WALL_X + WALL_WIDTH,
-        y: tombola::RIGHT_SLOPE_Y - WALL_WIDTH,
+        y: bottom_right_y,
         s: 32768,
         t: 65535,
     });
@@ -629,7 +645,7 @@ fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
     });
     vertices.push(TombolaVertex {
         x: -tombola::WALL_X - WALL_WIDTH,
-        y: tombola::LEFT_SLOPE_Y - WALL_WIDTH,
+        y: bottom_left_y,
         s: 32768,
         t: 65535,
     });
