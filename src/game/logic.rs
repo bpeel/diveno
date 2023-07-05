@@ -619,6 +619,10 @@ impl Logic {
     pub fn current_page(&self) -> Page {
         self.current_page
     }
+
+    pub fn bingo_grid(&self, team: Team) -> &BingoGrid {
+        &self.bingo_grids[team as usize]
+    }
 }
 
 pub struct GuessIter<'a> {
