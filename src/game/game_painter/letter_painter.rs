@@ -17,12 +17,14 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic, timer, letter_texture};
+use super::super::{logic, timer, letter_texture};
 use letter_texture::LETTERS;
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Vector3, Perspective3};
 use std::f32::consts::PI;
+use super::letter_vertex;
+use letter_vertex::Vertex;
 
 // Number of milliseconds per letter for the animation
 use super::super::timing::MILLIS_PER_LETTER;
@@ -48,20 +50,6 @@ const WAVE_LIFT_DISTANCE: f32 = 0.2;
 const ANSWER_DELAY: i64 = 1000;
 
 const EMPTY_COLOR: [u8; 3] = [0; 3];
-
-#[repr(C)]
-struct Vertex {
-    x: f32,
-    y: f32,
-    s: u16,
-    t: u16,
-    // Vertical Rotation centre
-    ry: f32,
-    // Rotation progress
-    rp: f32,
-    // Color of the background of the tile
-    color: [u8; 3],
-}
 
 struct AnimationTimes {
     reveal_time: Option<i64>,
@@ -101,7 +89,7 @@ pub struct LetterPainter {
 impl LetterPainter {
     pub fn new(paint_data: Rc<PaintData>) -> Result<LetterPainter, String> {
         let buffer = create_letter_buffer(&paint_data)?;
-        let array_object = create_array_object(
+        let array_object = letter_vertex::create_array_object(
             Rc::clone(&paint_data),
             Rc::clone(&buffer),
         )?;
@@ -666,69 +654,6 @@ impl LetterPainter {
     ) {
         self.add_rotated_letter(color, x, y, 0.0, letter);
     }
-}
-
-fn create_array_object(
-    paint_data: Rc<PaintData>,
-    buffer: Rc<Buffer>,
-) -> Result<ArrayObject, String> {
-    let rotation_attrib = unsafe {
-        match paint_data.gl.get_attrib_location(
-            paint_data.shaders.letter.id(),
-            "rotation",
-        ) {
-            Some(l) => l,
-            None => return Err("Missing “rotation” attrib".to_string()),
-        }
-    };
-
-    let mut array_object = ArrayObject::new(paint_data)?;
-    let mut offset = 0;
-
-    array_object.set_attribute(
-        shaders::POSITION_ATTRIB,
-        2, // size
-        glow::FLOAT,
-        false, // normalized
-        std::mem::size_of::<Vertex>() as i32,
-        Rc::clone(&buffer),
-        offset,
-    );
-    offset += std::mem::size_of::<f32>() as i32 * 2;
-
-    array_object.set_attribute(
-        shaders::TEX_COORD_ATTRIB,
-        2, // size
-        glow::UNSIGNED_SHORT,
-        true, // normalized
-        std::mem::size_of::<Vertex>() as i32,
-        Rc::clone(&buffer),
-        offset,
-    );
-    offset += std::mem::size_of::<u16>() as i32 * 2;
-
-    array_object.set_attribute(
-        rotation_attrib,
-        2, // size
-        glow::FLOAT,
-        false, // normalized
-        std::mem::size_of::<Vertex>() as i32,
-        Rc::clone(&buffer),
-        offset,
-    );
-    offset += std::mem::size_of::<f32>() as i32 * 2;
-
-    array_object.set_attribute(
-        shaders::COLOR_ATTRIB,
-        3, // size
-        glow::UNSIGNED_BYTE,
-        true, // normalized
-        std::mem::size_of::<Vertex>() as i32,
-        buffer,
-        offset,
-    );
-
-    Ok(array_object)
 }
 
 fn create_letter_buffer(paint_data: &PaintData) -> Result<Rc<Buffer>, String> {
