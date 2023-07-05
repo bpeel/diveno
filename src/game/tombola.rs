@@ -80,6 +80,8 @@ enum SpinStage {
 }
 
 pub struct Tombola {
+    n_balls: usize,
+
     start_time: Timer,
     steps_executed: i64,
     spin_stage: SpinStage,
@@ -163,6 +165,8 @@ impl Tombola {
         add_walls(&mut collider_set);
 
         Tombola {
+            n_balls,
+
             start_time: Timer::new(),
             steps_executed: 0,
             spin_stage: SpinStage::None,
@@ -492,6 +496,40 @@ impl Tombola {
 
     pub fn claw_pos(&self) -> (f32, f32) {
         (self.claw_x, self.claw_y)
+    }
+
+    pub fn reset(&mut self) {
+        if !matches!(self.spin_stage, SpinStage::None) {
+            self.spin_stage = SpinStage::None;
+            self.freeze_sides();
+        }
+
+        self.start_time = Timer::new();
+        self.steps_executed = 0;
+
+        self.rotation = 0.0;
+
+        for (side_num, &side_handle) in self.side_handles.iter().enumerate() {
+            let position = Tombola::side_position(side_num, 0.0);
+            let side_body = &mut self.rigid_body_set[side_handle];
+            side_body.set_position(position, true);
+        }
+
+        self.claw_x = 0.0;
+        self.claw_y = CLAW_MAX;
+
+        let packer = HexagonalPacker::new(
+            BALL_SIZE / 2.0,
+            (self.n_balls as f32).sqrt().round() as u32,
+        );
+
+        for (&ball_handle, (x, y)) in self.ball_handles.iter().zip(packer) {
+            let ball_body = &mut self.rigid_body_set[ball_handle];
+            ball_body.set_translation(vector![x, y], true);
+            ball_body.set_rotation(Rotation::new(0.0), true);
+            ball_body.set_angvel(0.0, true);
+            ball_body.set_linvel(vector![0.0, 0.0], true);
+        }
     }
 }
 
