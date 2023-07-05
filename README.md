@@ -27,7 +27,17 @@ python3 -m twisted web --path="$PWD"
 
 ## Keys
 
-The game is meant to be played with a host who makes sure the rules are followed. This means the program is more just a tool to host the game and it doesn’t enforce the rules. The host can be lenient and let teams off for simple mistakes. To manage the game the host needs to remember the following keys:
+The game is meant to be played with a host who makes sure the rules are followed. This means the program is more just a tool to host the game and it doesn’t enforce the rules. The host can be lenient and let teams off for simple mistakes. To manage the game the host needs to remember some keyboard shortcuts. The game is split into three pages: the left team bingo grid, the word puzzle and the right team bingo grid. The keys do different things depending on which page is visible:
+
+### Any page
+
+| Key | Action |
+| --- | ------ |
+| Left, Right | Switch between the pages |
+| Up, Down | Add or subtract 10 points to the appropriate team. This is intended to be able to undo mistakes. |
+| Space | Switch teams. When a word is solved the points will be added to the current team. |
+
+### Word puzzle page
 
 | Key | Action |
 | --- | ------ |
@@ -36,7 +46,11 @@ The game is meant to be played with a host who makes sure the rules are followed
 | Backspace | Remove the last letter in the current guess. |
 | Delete | Reject a guess. Normally you would do this after a team suggests an invalid word before passing over to the other team. |
 | Page down | Add a letter hint. Normally you would do this before passing to the othear team. |
-| Space | Switch teams. When a word is solved the points will be added to the current team. |
 | Home | Pick a new word and reset the word grid. |
-| Left, Right | Switch between the left team bingo grid, the word puzzle and the right team bingo grid |
-| Up, Down | Add or subtract 10 points to the appropriate team. This is intended to be able to undo mistakes. |
+
+### Bingo grid page
+
+| Key | Action |
+| --- | ------ |
+| Enter | Spin the tombola and pick a ball. If the ball has a number then it will turn red on the bingo grid. If that forms a line then the corresponding team will receive 100 points. |
+| Home | Pick a new bingo grid for the chosen team and put all the balls back in the tombola. |
