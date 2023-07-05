@@ -26,6 +26,9 @@ use letter_vertex::Vertex;
 
 const TEX_SPACES_X: u32 = 8;
 const TEX_SPACES_Y: u32 = 4;
+// Size of the border around a space as a fraction of the total space
+// allocated to a space
+const BORDER_SIZE: f32 = 0.1;
 
 pub struct BingoPainter {
     team: logic::Team,
@@ -179,6 +182,10 @@ impl BingoPainter {
         for (index, space) in logic.bingo_grid(self.team).spaces().enumerate() {
             let x = (index % bingo_grid::GRID_WIDTH) as f32;
             let y = (index / bingo_grid::GRID_WIDTH) as f32;
+            let x1 = x + BORDER_SIZE;
+            let y1 = y + BORDER_SIZE;
+            let x2 = x + 1.0 - BORDER_SIZE;
+            let y2 = y + 1.0 - BORDER_SIZE;
             let tex_x = space.ball as u32 % TEX_SPACES_X;
             let tex_y = space.ball as u32 / TEX_SPACES_X;
             let s1 = (tex_x * 65535 / TEX_SPACES_X) as u16;
@@ -192,8 +199,8 @@ impl BingoPainter {
             };
 
             self.vertices.push(Vertex {
-                x,
-                y,
+                x: x1,
+                y: y1,
                 s: s1,
                 t: t1,
                 ry: 0.0,
@@ -201,8 +208,8 @@ impl BingoPainter {
                 color,
             });
             self.vertices.push(Vertex {
-                x,
-                y: y + 1.0,
+                x: x1,
+                y: y2,
                 s: s1,
                 t: t2,
                 ry: 0.0,
@@ -210,8 +217,8 @@ impl BingoPainter {
                 color,
             });
             self.vertices.push(Vertex {
-                x: x + 1.0,
-                y,
+                x: x2,
+                y: y1,
                 s: s2,
                 t: t1,
                 ry: 0.0,
@@ -219,8 +226,8 @@ impl BingoPainter {
                 color,
             });
             self.vertices.push(Vertex {
-                x: x + 1.0,
-                y: y + 1.0,
+                x: x2,
+                y: y2,
                 s: s2,
                 t: t2,
                 ry: 0.0,
