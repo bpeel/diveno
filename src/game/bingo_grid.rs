@@ -20,6 +20,8 @@ pub const GRID_WIDTH: usize = 5;
 pub const GRID_HEIGHT: usize = 5;
 pub const N_SPACES: usize = GRID_WIDTH * GRID_HEIGHT;
 pub const N_INITIAL_SPACES_COVERED: usize = 8;
+pub const N_INITIAL_SPACES_UNCOVERED: usize =
+    N_SPACES - N_INITIAL_SPACES_COVERED;
 // When generating the inital set of covered spaces, we won’t cover
 // another space in a row, column or diagonal that already has this
 // many spaces covered. That way we won’t generate a line that is
@@ -29,6 +31,8 @@ const MAX_INITIAL_COVERED_SPACES_PER_LINE: usize = 2;
 pub struct BingoGrid {
     spaces_covered: u32,
     spaces: [u8; N_SPACES],
+    // Mapping from initial uncovered space index to space index
+    initial_uncovered_space_map: [u8; N_INITIAL_SPACES_UNCOVERED],
 }
 
 impl BingoGrid {
@@ -44,12 +48,25 @@ impl BingoGrid {
         BingoGrid {
             spaces_covered: 0,
             spaces,
+            initial_uncovered_space_map: Default::default(),
         }
     }
 
     pub fn reset(&mut self) {
         random::shuffle(&mut self.spaces);
         self.spaces_covered = generate_initial_spaces_covered();
+
+        let mut spaces_uncovered = !self.spaces_covered & ((1 << N_SPACES) - 1);
+
+        for index in 0..N_INITIAL_SPACES_UNCOVERED {
+            assert!(spaces_uncovered != 0);
+
+            let space = spaces_uncovered.trailing_zeros();
+
+            self.initial_uncovered_space_map[index] = space as u8;
+
+            spaces_uncovered &= !(1 << space);
+        }
     }
 
     pub fn spaces(&self) -> SpaceIter {
@@ -64,6 +81,13 @@ impl BingoGrid {
             ball: self.spaces[index],
             covered: self.spaces_covered & (1 << index) != 0,
         }
+    }
+
+    pub fn space_for_initial_uncovered_space_index(
+        &self,
+        index: usize
+    ) -> usize {
+        self.initial_uncovered_space_map[index] as usize
     }
 }
 
