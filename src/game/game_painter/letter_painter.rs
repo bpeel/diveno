@@ -21,7 +21,7 @@ use super::super::{logic, timer, letter_texture};
 use letter_texture::LETTERS;
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
-use nalgebra::{Vector3, Perspective3};
+use nalgebra::{Vector3, Perspective3, Matrix4};
 use std::f32::consts::PI;
 use super::letter_vertex;
 use letter_vertex::Vertex;
@@ -76,6 +76,7 @@ pub struct LetterPainter {
     transform_dirty: bool,
     vertices_dirty: bool,
     mvp_uniform: glow::UniformLocation,
+    mvp_matrix: Matrix4<f32>,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
@@ -112,6 +113,7 @@ impl LetterPainter {
             transform_dirty: true,
             vertices_dirty: true,
             mvp_uniform,
+            mvp_matrix: Default::default(),
             vertices: Vec::new(),
             most_quads: 0,
             reveal_start_time: None,
@@ -211,6 +213,12 @@ impl LetterPainter {
             );
 
             gl.use_program(Some(self.paint_data.shaders.letter.id()));
+
+            gl.uniform_matrix_4_f32_slice(
+                Some(&self.mvp_uniform),
+                false, // transpose
+                self.mvp_matrix.as_slice(),
+            );
 
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
             gl.enable(glow::BLEND);
@@ -314,7 +322,7 @@ impl LetterPainter {
             zero_distance + TILE_SIZE * 2.0,
         );
 
-        let matrix = perspective
+        self.mvp_matrix = perspective
             .as_matrix()
             .prepend_translation(&Vector3::new(0.0, 0.0, -zero_distance))
             .prepend_nonuniform_scaling(&Vector3::new(
@@ -327,17 +335,6 @@ impl LetterPainter {
                 -(logic::N_GUESSES as f32) / 2.0,
                 0.0,
             ));
-
-        let gl = &self.paint_data.gl;
-
-        unsafe {
-            gl.use_program(Some(self.paint_data.shaders.letter.id()));
-            gl.uniform_matrix_4_f32_slice(
-                Some(&self.mvp_uniform),
-                false, // transpose
-                matrix.as_slice(),
-            );
-        }
 
         self.vertices_dirty = true;
     }
