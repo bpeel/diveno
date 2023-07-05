@@ -137,7 +137,7 @@ impl BingoPainter {
         event: &logic::Event,
     ) -> bool {
         match event {
-            logic::Event::BingoChanged(team) |
+            logic::Event::BingoChanged(team, _) |
             logic::Event::Bingo(team, _) |
             logic::Event::BingoReset(team) => {
                 if *team == self.team {

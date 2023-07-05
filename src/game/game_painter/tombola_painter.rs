@@ -340,7 +340,7 @@ impl TombolaPainter {
             logic::Event::ScoreChanged(_) => false,
             logic::Event::CurrentTeamChanged => false,
             logic::Event::CurrentPageChanged(_) => false,
-            logic::Event::BingoChanged(_) => false,
+            logic::Event::BingoChanged(..) => false,
             logic::Event::Bingo(..) => false,
         }
     }

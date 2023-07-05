@@ -41,7 +41,7 @@ pub enum Event {
     CurrentPageChanged(Page),
     TombolaStartedSpinning(Team),
     BingoReset(Team),
-    BingoChanged(Team),
+    BingoChanged(Team, usize),
     Bingo(Team, bingo_grid::Bingo),
 }
 
@@ -606,13 +606,15 @@ impl Logic {
 
         if let Some(ball) = tombola.take_chosen_ball() {
             if ball < N_NUMBER_BALLS {
-                self.queue_event_once(Event::BingoChanged(team));
-
-                let bingo_grid = &mut self.bingo_grids[team as usize];
+                let bingo_grid = &self.bingo_grids[team as usize];
 
                 let ball = bingo_grid.space_for_initial_uncovered_space_index(
                     ball
                 );
+
+                self.queue_event_once(Event::BingoChanged(team, ball));
+
+                let bingo_grid = &mut self.bingo_grids[team as usize];
 
                 if let Some(bingo) = bingo_grid.cover_space(ball) {
                     self.scores[team as usize] += 100;

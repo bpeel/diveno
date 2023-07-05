@@ -297,7 +297,7 @@ impl LetterPainter {
             logic::Event::CurrentPageChanged(_) => false,
             logic::Event::TombolaStartedSpinning(_) => false,
             logic::Event::BingoReset(_) => false,
-            logic::Event::BingoChanged(_) => false,
+            logic::Event::BingoChanged(..) => false,
             logic::Event::Bingo(..) => false,
         }
     }
