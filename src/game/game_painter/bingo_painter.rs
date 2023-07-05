@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{logic, bingo_grid};
+use super::super::{logic, bingo_grid, timer};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Matrix4, Vector3};
@@ -29,6 +29,21 @@ const TEX_SPACES_Y: u32 = 4;
 // Size of the border around a space as a fraction of the total space
 // allocated to a space
 const BORDER_SIZE: f32 = 0.1;
+
+// Time in milliseconds to flash the space when it is covered
+const FLASH_TIME: i64 = 2000;
+// Number of flashes per second
+const FLASHES_PER_SECOND: i64 = 4;
+
+struct Flash {
+    start_time: timer::Timer,
+    space: usize,
+}
+
+struct FlashResult {
+    space: usize,
+    covered: bool,
+}
 
 pub struct BingoPainter {
     team: logic::Team,
@@ -45,6 +60,7 @@ pub struct BingoPainter {
     vertices: Vec<Vertex>,
     // Used to keep track of whether we need to create a new quad buffer
     most_quads: u32,
+    flash: Option<Flash>,
 }
 
 impl BingoPainter {
@@ -82,7 +98,26 @@ impl BingoPainter {
             mvp_matrix: Default::default(),
             vertices: Vec::new(),
             most_quads: 0,
+            flash: None,
         })
+    }
+
+    fn update_flash(&mut self) -> Option<FlashResult> {
+        if let Some(flash) = self.flash.as_ref() {
+            let elapsed = flash.start_time.elapsed();
+
+            if elapsed >= FLASH_TIME {
+                self.flash = None;
+                None
+            } else {
+                Some(FlashResult {
+                    space: flash.space,
+                    covered: (elapsed * FLASHES_PER_SECOND / 1000) & 1 == 0,
+                })
+            }
+        } else {
+            None
+        }
     }
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
@@ -92,7 +127,8 @@ impl BingoPainter {
         }
 
         if self.vertices_dirty {
-            self.update_vertices(logic);
+            let flash = self.update_flash();
+            self.update_vertices(logic, flash);
             self.vertices_dirty = false;
         }
 
@@ -122,7 +158,12 @@ impl BingoPainter {
             );
         }
 
-        false
+        if self.flash.is_some() {
+            self.vertices_dirty = true;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -137,7 +178,18 @@ impl BingoPainter {
         event: &logic::Event,
     ) -> bool {
         match event {
-            logic::Event::BingoChanged(team, _) |
+            logic::Event::BingoChanged(team, space) => {
+                if *team == self.team {
+                    self.flash = Some(Flash {
+                        start_time: timer::Timer::new(),
+                        space: *space,
+                    });
+                    self.vertices_dirty = true;
+                    true
+                } else {
+                    false
+                }
+            },
             logic::Event::Bingo(team, _) |
             logic::Event::BingoReset(team) => {
                 if *team == self.team {
@@ -197,6 +249,7 @@ impl BingoPainter {
     fn fill_vertices_array(
         &mut self,
         logic: &logic::Logic,
+        flash: Option<FlashResult>,
     ) {
         self.vertices.clear();
 
@@ -213,7 +266,12 @@ impl BingoPainter {
             let t1 = (tex_y * 65535 / TEX_SPACES_Y) as u16;
             let s2 = ((tex_x + 1) * 65535 / TEX_SPACES_X) as u16;
             let t2 = ((tex_y + 1) * 65535 / TEX_SPACES_Y) as u16;
-            let color = if space.covered {
+            let color = if flash.as_ref().map(|res| if res.space == index {
+                res.covered
+            } else {
+                space.covered
+            }).unwrap_or(space.covered)
+            {
                 [0xe7, 0x00, 0x2a]
             } else {
                 [0x00, 0x77, 0xc7]
@@ -261,8 +319,9 @@ impl BingoPainter {
     fn update_vertices(
         &mut self,
         logic: &logic::Logic,
+        flash: Option<FlashResult>,
     ) {
-        self.fill_vertices_array(logic);
+        self.fill_vertices_array(logic, flash);
 
         let n_quads = self.vertices.len() as u32 / 4;
 
