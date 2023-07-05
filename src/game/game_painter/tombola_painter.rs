@@ -269,7 +269,7 @@ impl TombolaPainter {
         let top = tombola::APOTHEM
             / (PI / tombola::N_SIDES as f32).cos()
             + tombola::BALL_SIZE * 2.0;
-        let bottom = tombola::LEFT_SLOPE_Y - WALL_WIDTH;
+        let (bottom, _) = wall_bottom_positions();
         let left = -tombola::WALL_X - WALL_WIDTH;
         let right = tombola::WALL_X + WALL_WIDTH;
         let tombola_ratio = (right - left) / (top - bottom);
@@ -599,10 +599,7 @@ fn add_claw_vertices(vertices: &mut Vec<TombolaVertex>) {
     });
 }
 
-fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
-    let wall_top = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos()
-        + tombola::BALL_SIZE * 2.0;
-
+fn wall_bottom_positions() -> (f32, f32) {
     // Work out the angle of the slope
     let height_diff = tombola::RIGHT_SLOPE_Y - tombola::LEFT_SLOPE_Y;
     let angle = (height_diff / (tombola::WALL_X * 2.0)).atan();
@@ -618,6 +615,15 @@ fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
         - vertical_offset;
     let bottom_left_y = m * (-tombola::WALL_X - WALL_WIDTH) + c;
     let bottom_right_y = m * (tombola::WALL_X + WALL_WIDTH) + c;
+
+    (bottom_left_y, bottom_right_y)
+}
+
+fn add_wall_vertices(vertices: &mut Vec<TombolaVertex>) {
+    let wall_top = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos()
+        + tombola::BALL_SIZE * 2.0;
+
+    let (bottom_left_y, bottom_right_y) = wall_bottom_positions();
 
     vertices.push(TombolaVertex {
         x: tombola::WALL_X + WALL_WIDTH,
