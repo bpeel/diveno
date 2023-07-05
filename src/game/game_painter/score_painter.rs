@@ -210,7 +210,14 @@ impl ScorePainter {
             logic::Event::TombolaStartedSpinning(_) => false,
             logic::Event::BingoReset(_) => false,
             logic::Event::BingoChanged(_) => false,
-            logic::Event::Bingo(..) => false,
+            logic::Event::Bingo(team, _) => {
+                if self.team_is_visible(*team) {
+                    self.animate_bingo_score_change(*team);
+                    true
+                } else {
+                    false
+                }
+            },
             logic::Event::Solved => {
                 if self.team_is_visible(logic.current_team()) {
                     self.animate_solved_score_change(logic);
@@ -238,6 +245,13 @@ impl ScorePainter {
         self.animate_score_change(
             logic.current_team(),
             timing::MILLIS_PER_LETTER * logic.word_length() as i64,
+        );
+    }
+
+    fn animate_bingo_score_change(&mut self, team: logic::Team) {
+        self.animate_score_change(
+            team,
+            0, // delay
         );
     }
 
