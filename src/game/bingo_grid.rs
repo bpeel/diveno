@@ -28,12 +28,50 @@ pub const N_INITIAL_SPACES_UNCOVERED: usize =
 // already a bingo or that is too easy to complete.
 const MAX_INITIAL_COVERED_SPACES_PER_LINE: usize = 2;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Bingo {
     Row(u8),
     Column(u8),
     DiagonalA,
     DiagonalB,
+}
+
+impl Bingo {
+    pub fn letter_index_for_space(self, space: u8) -> Option<u8> {
+        let x = space % GRID_WIDTH as u8;
+        let y = space / GRID_WIDTH as u8;
+
+        match self {
+            Bingo::Row(row) => {
+                if row == y {
+                    Some(x)
+                } else {
+                    None
+                }
+            },
+            Bingo::Column(column) => {
+                if column == x {
+                    Some(y)
+                } else {
+                    None
+                }
+            },
+            Bingo::DiagonalA => {
+                if x == y {
+                    Some(x)
+                } else {
+                    None
+                }
+            },
+            Bingo::DiagonalB => {
+                if x == GRID_HEIGHT as u8 - 1 - y {
+                    Some(x)
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 pub struct BingoGrid {
@@ -316,5 +354,62 @@ mod test {
         assert!(grid.cover_space(12).is_none());
         assert!(grid.cover_space(16).is_none());
         assert!(matches!(grid.cover_space(20), Some(Bingo::DiagonalB)));
+    }
+
+    #[test]
+    fn letter_index_for_space() {
+        let bingo = Bingo::Row(0);
+        assert_eq!(bingo.letter_index_for_space(0), Some(0));
+        assert_eq!(bingo.letter_index_for_space(1), Some(1));
+        assert_eq!(bingo.letter_index_for_space(2), Some(2));
+        assert_eq!(bingo.letter_index_for_space(3), Some(3));
+        assert_eq!(bingo.letter_index_for_space(4), Some(4));
+        assert_eq!(bingo.letter_index_for_space(5), None);
+
+        let bingo = Bingo::Row(4);
+        assert_eq!(bingo.letter_index_for_space(20), Some(0));
+        assert_eq!(bingo.letter_index_for_space(21), Some(1));
+        assert_eq!(bingo.letter_index_for_space(22), Some(2));
+        assert_eq!(bingo.letter_index_for_space(23), Some(3));
+        assert_eq!(bingo.letter_index_for_space(24), Some(4));
+        assert_eq!(bingo.letter_index_for_space(0), None);
+        assert_eq!(bingo.letter_index_for_space(12), None);
+
+        let bingo = Bingo::Column(0);
+        assert_eq!(bingo.letter_index_for_space(0), Some(0));
+        assert_eq!(bingo.letter_index_for_space(5), Some(1));
+        assert_eq!(bingo.letter_index_for_space(10), Some(2));
+        assert_eq!(bingo.letter_index_for_space(15), Some(3));
+        assert_eq!(bingo.letter_index_for_space(20), Some(4));
+        assert_eq!(bingo.letter_index_for_space(6), None);
+
+        let bingo = Bingo::Column(4);
+        assert_eq!(bingo.letter_index_for_space(4), Some(0));
+        assert_eq!(bingo.letter_index_for_space(9), Some(1));
+        assert_eq!(bingo.letter_index_for_space(14), Some(2));
+        assert_eq!(bingo.letter_index_for_space(19), Some(3));
+        assert_eq!(bingo.letter_index_for_space(24), Some(4));
+        assert_eq!(bingo.letter_index_for_space(6), None);
+        assert_eq!(bingo.letter_index_for_space(0), None);
+
+        let bingo = Bingo::DiagonalA;
+        assert_eq!(bingo.letter_index_for_space(0), Some(0));
+        assert_eq!(bingo.letter_index_for_space(6), Some(1));
+        assert_eq!(bingo.letter_index_for_space(12), Some(2));
+        assert_eq!(bingo.letter_index_for_space(18), Some(3));
+        assert_eq!(bingo.letter_index_for_space(24), Some(4));
+        assert_eq!(bingo.letter_index_for_space(4), None);
+        assert_eq!(bingo.letter_index_for_space(8), None);
+        assert_eq!(bingo.letter_index_for_space(20), None);
+
+        let bingo = Bingo::DiagonalB;
+        assert_eq!(bingo.letter_index_for_space(20), Some(0));
+        assert_eq!(bingo.letter_index_for_space(16), Some(1));
+        assert_eq!(bingo.letter_index_for_space(12), Some(2));
+        assert_eq!(bingo.letter_index_for_space(8), Some(3));
+        assert_eq!(bingo.letter_index_for_space(4), Some(4));
+        assert_eq!(bingo.letter_index_for_space(0), None);
+        assert_eq!(bingo.letter_index_for_space(6), None);
+        assert_eq!(bingo.letter_index_for_space(24), None);
     }
 }
