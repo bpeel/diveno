@@ -115,6 +115,8 @@ impl SoundQueue {
             logic::Event::CurrentPageChanged(_) => (),
             logic::Event::TombolaStartedSpinning(_) => (),
             logic::Event::BingoReset(_) => (),
+            logic::Event::BingoChanged(_) => (),
+            logic::Event::Bingo(..) => (),
         }
     }
 

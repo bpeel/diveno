@@ -41,6 +41,8 @@ pub enum Event {
     CurrentPageChanged(Page),
     TombolaStartedSpinning(Team),
     BingoReset(Team),
+    BingoChanged(Team),
+    Bingo(Team, bingo_grid::Bingo),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -598,7 +600,25 @@ impl Logic {
     }
 
     pub fn step_tombola(&mut self, team: Team) {
-        self.tombolas[team as usize].step();
+        let tombola = &mut self.tombolas[team as usize];
+
+        tombola.step();
+
+        if let Some(ball) = tombola.take_chosen_ball() {
+            if ball < N_NUMBER_BALLS {
+                self.queue_event_once(Event::BingoChanged(team));
+
+                let bingo_grid = &mut self.bingo_grids[team as usize];
+
+                let ball = bingo_grid.space_for_initial_uncovered_space_index(
+                    ball
+                );
+
+                if let Some(bingo) = bingo_grid.cover_space(ball) {
+                    self.queue_event_once(Event::Bingo(team, bingo));
+                }
+            }
+        }
     }
 
     pub fn balls(&self, team: Team) -> BallIter {
