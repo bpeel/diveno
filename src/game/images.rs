@@ -46,9 +46,10 @@ pub struct ImageSet {
     pub balls: Texture,
     pub tombola: Texture,
     pub claw: Texture,
+    pub bingo: Texture,
 }
 
-const N_IMAGES: usize = 5;
+const N_IMAGES: usize = 6;
 
 static IMAGE_FILENAMES: [&'static str; N_IMAGES] = [
     "letters.png",
@@ -56,6 +57,7 @@ static IMAGE_FILENAMES: [&'static str; N_IMAGES] = [
     "balls.png",
     "tombola.png",
     "claw.png",
+    "bingo.png",
 ];
 
 pub struct ImageLoader {
@@ -101,6 +103,7 @@ impl ImageLoader {
             balls,
             tombola,
             claw,
+            bingo,
         ] = self.textures.map(|s| s.unwrap());
 
         ImageSet {
@@ -109,6 +112,7 @@ impl ImageLoader {
             balls,
             tombola,
             claw,
+            bingo,
         }
     }
 }

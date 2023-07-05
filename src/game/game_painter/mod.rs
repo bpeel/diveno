@@ -17,6 +17,7 @@
 mod letter_painter;
 mod score_painter;
 mod tombola_painter;
+mod bingo_painter;
 mod letter_vertex;
 
 use std::rc::Rc;
