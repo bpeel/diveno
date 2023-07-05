@@ -28,6 +28,14 @@ pub const N_INITIAL_SPACES_UNCOVERED: usize =
 // already a bingo or that is too easy to complete.
 const MAX_INITIAL_COVERED_SPACES_PER_LINE: usize = 2;
 
+#[derive(PartialEq, Eq)]
+pub enum Bingo {
+    Row(u8),
+    Column(u8),
+    DiagonalA,
+    DiagonalB,
+}
+
 pub struct BingoGrid {
     spaces_covered: u32,
     spaces: [u8; N_SPACES],
@@ -88,6 +96,33 @@ impl BingoGrid {
         index: usize
     ) -> usize {
         self.initial_uncovered_space_map[index] as usize
+    }
+
+    pub fn cover_space(&mut self, index: usize) -> Option<Bingo> {
+        self.spaces_covered |= 1 << index;
+
+        let column = (index % GRID_WIDTH) as u32;
+        let row = (index / GRID_WIDTH) as u32;
+
+        if self.is_bingo_for_mask(mask_for_row(row)) {
+            Some(Bingo::Row(row as u8))
+        } else if self.is_bingo_for_mask(mask_for_column(column)) {
+            Some(Bingo::Column(column as u8))
+        } else if row == column
+            && self.is_bingo_for_mask(mask_for_diagonal_a())
+        {
+            Some(Bingo::DiagonalA)
+        } else if GRID_HEIGHT as u32 - 1 - row == column
+            && self.is_bingo_for_mask(mask_for_diagonal_b())
+        {
+            Some(Bingo::DiagonalB)
+        } else {
+            None
+        }
+    }
+
+    fn is_bingo_for_mask(&self, mask: u32) -> bool {
+        self.spaces_covered & mask == mask
     }
 }
 
@@ -210,4 +245,76 @@ fn generate_initial_spaces_covered() -> u32 {
     assert_eq!(spaces_covered.count_ones() as usize, N_INITIAL_SPACES_COVERED);
 
     spaces_covered
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn test_grid() -> BingoGrid {
+        let mut grid = BingoGrid::new();
+        grid.spaces_covered = 0;
+        grid
+    }
+
+    #[test]
+    fn bingo() {
+        let mut grid = test_grid();
+        assert!(grid.cover_space(0).is_none());
+        assert!(grid.cover_space(1).is_none());
+        assert!(grid.cover_space(2).is_none());
+        assert!(grid.cover_space(3).is_none());
+        if let Some(Bingo::Row(row)) = grid.cover_space(4) {
+            assert_eq!(row, 0);
+        } else {
+            unreachable!();
+        }
+
+        let mut grid = test_grid();
+        assert!(grid.cover_space(20).is_none());
+        assert!(grid.cover_space(21).is_none());
+        assert!(grid.cover_space(22).is_none());
+        assert!(grid.cover_space(23).is_none());
+        if let Some(Bingo::Row(row)) = grid.cover_space(24) {
+            assert_eq!(row, 4);
+        } else {
+            unreachable!();
+        }
+
+        let mut grid = test_grid();
+        assert!(grid.cover_space(0).is_none());
+        assert!(grid.cover_space(5).is_none());
+        assert!(grid.cover_space(10).is_none());
+        assert!(grid.cover_space(15).is_none());
+        if let Some(Bingo::Column(column)) = grid.cover_space(20) {
+            assert_eq!(column, 0);
+        } else {
+            unreachable!();
+        }
+
+        let mut grid = test_grid();
+        assert!(grid.cover_space(4).is_none());
+        assert!(grid.cover_space(9).is_none());
+        assert!(grid.cover_space(14).is_none());
+        assert!(grid.cover_space(19).is_none());
+        if let Some(Bingo::Column(column)) = grid.cover_space(24) {
+            assert_eq!(column, 4);
+        } else {
+            unreachable!();
+        }
+
+        let mut grid = test_grid();
+        assert!(grid.cover_space(0).is_none());
+        assert!(grid.cover_space(6).is_none());
+        assert!(grid.cover_space(12).is_none());
+        assert!(grid.cover_space(18).is_none());
+        assert!(matches!(grid.cover_space(24), Some(Bingo::DiagonalA)));
+
+        let mut grid = test_grid();
+        assert!(grid.cover_space(4).is_none());
+        assert!(grid.cover_space(8).is_none());
+        assert!(grid.cover_space(12).is_none());
+        assert!(grid.cover_space(16).is_none());
+        assert!(matches!(grid.cover_space(20), Some(Bingo::DiagonalB)));
+    }
 }
