@@ -25,6 +25,7 @@ use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
 use tombola_painter::TombolaPainter;
+use bingo_painter::BingoPainter;
 use super::{logic, timer};
 use logic::{Team, Page, Logic};
 use glow::HasContext;
@@ -60,6 +61,7 @@ impl AnimationPosition {
 struct TeamPainters {
     tombola: TombolaPainter,
     score: ScorePainter,
+    bingo: BingoPainter,
 }
 
 pub struct GamePainter {
@@ -98,6 +100,10 @@ impl GamePainter {
                         Rc::clone(&paint_data),
                         score_painter::TeamChoice::OneTeam(Team::Left),
                     )?,
+                    bingo: BingoPainter::new(
+                        Rc::clone(&paint_data),
+                        Team::Left,
+                    )?,
                 },
                 TeamPainters {
                     tombola: TombolaPainter::new(
@@ -107,6 +113,10 @@ impl GamePainter {
                     score: ScorePainter::new(
                         Rc::clone(&paint_data),
                         score_painter::TeamChoice::OneTeam(Team::Right),
+                    )?,
+                    bingo: BingoPainter::new(
+                        Rc::clone(&paint_data),
+                        Team::Right,
                     )?,
                 },
             ],
@@ -121,7 +131,9 @@ impl GamePainter {
         match page {
             Page::Bingo(team) => {
                 let painters = &mut self.team_painters[team as usize];
-                painters.tombola.paint(logic) | painters.score.paint(logic)
+                painters.tombola.paint(logic)
+                    | painters.score.paint(logic)
+                    | painters.bingo.paint(logic)
             },
             Page::Word => {
                 self.all_score_painter.paint(logic)
@@ -197,6 +209,7 @@ impl GamePainter {
         for painters in self.team_painters.iter_mut() {
             painters.tombola.update_fb_size(width, height);
             painters.score.update_fb_size(width, height);
+            painters.bingo.update_fb_size(width, height);
         }
     }
 
@@ -235,7 +248,8 @@ impl GamePainter {
 
             let team_redraw_needed =
                 painters.tombola.handle_logic_event(logic, event)
-                | painters.score.handle_logic_event(logic, event);
+                | painters.score.handle_logic_event(logic, event)
+                | painters.bingo.handle_logic_event(logic, event);
 
             if team_redraw_needed
                 && animation_position.page_visible(Page::Bingo(team))
