@@ -656,7 +656,11 @@ impl<'a> Iterator for BallIter<'a> {
     fn next(&mut self) -> Option<Ball> {
         self.iter.next().map(|ball| {
             let ball_type = if (ball.ball_index as usize) < N_NUMBER_BALLS {
-                let space = self.bingo_grid.space(ball.ball_index as usize);
+                let space_index =
+                    self.bingo_grid.space_for_initial_uncovered_space_index(
+                        ball.ball_index as usize
+                    );
+                let space = self.bingo_grid.space(space_index);
                 BallType::Number(space.ball as u32)
             } else {
                 BallType::Black
