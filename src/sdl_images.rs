@@ -32,6 +32,7 @@ fn copy_surface_to_texture(
 
     let gl_format = match surface.pixel_format_enum() {
         PixelFormatEnum::RGBA32 => glow::RGBA,
+        PixelFormatEnum::RGB24 => glow::RGB,
         _ => return Err(format!(
             "Unsupported pixel format: {:?}",
             surface.pixel_format_enum(),
