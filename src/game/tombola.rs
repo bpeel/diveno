@@ -90,6 +90,8 @@ pub struct Tombola {
     claw_x: f32,
     claw_y: f32,
 
+    chosen_ball: Option<usize>,
+
     rigid_body_set: RigidBodySet,
     collider_set: ColliderSet,
     integration_parameters: IntegrationParameters,
@@ -174,6 +176,8 @@ impl Tombola {
             rotation: 0.0,
             claw_x: 0.0,
             claw_y: CLAW_MAX,
+
+            chosen_ball: None,
 
             rigid_body_set,
             collider_set,
@@ -363,6 +367,7 @@ impl Tombola {
 
             ball_body.set_body_type(RigidBodyType::Dynamic, true);
             self.spin_stage = SpinStage::SlidingIn(self.steps_executed);
+            self.chosen_ball = Some(ball);
         } else {
             self.claw_x = claw_pos;
 
@@ -518,6 +523,8 @@ impl Tombola {
         self.claw_x = 0.0;
         self.claw_y = CLAW_MAX;
 
+        self.chosen_ball = None;
+
         let packer = HexagonalPacker::new(
             BALL_SIZE / 2.0,
             (self.n_balls as f32).sqrt().round() as u32,
@@ -530,6 +537,10 @@ impl Tombola {
             ball_body.set_angvel(0.0, true);
             ball_body.set_linvel(vector![0.0, 0.0], true);
         }
+    }
+
+    pub fn take_chosen_ball(&mut self) -> Option<usize> {
+        self.chosen_ball.take()
     }
 }
 
