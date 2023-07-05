@@ -615,6 +615,8 @@ impl Logic {
                 );
 
                 if let Some(bingo) = bingo_grid.cover_space(ball) {
+                    self.scores[team as usize] += 100;
+                    self.queue_event_once(Event::ScoreChanged(team));
                     self.queue_event_once(Event::Bingo(team, bingo));
                 }
             }
