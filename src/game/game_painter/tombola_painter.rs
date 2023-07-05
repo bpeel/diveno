@@ -322,6 +322,7 @@ impl TombolaPainter {
         event: &logic::Event,
     ) -> bool {
         match event {
+            logic::Event::BingoReset(team) |
             logic::Event::TombolaStartedSpinning(team) => {
                 if *team == self.team {
                     self.vertices_dirty = true;

@@ -40,6 +40,7 @@ pub enum Event {
     CurrentTeamChanged,
     CurrentPageChanged(Page),
     TombolaStartedSpinning(Team),
+    BingoReset(Team),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -280,8 +281,9 @@ impl Logic {
             },
             Key::Home => {
                 self.dead_key_queued = false;
-                if self.current_page == Page::Word {
-                    self.pick_word();
+                match self.current_page {
+                    Page::Word => self.pick_word(),
+                    Page::Bingo(team) => self.reset_bingo(team),
                 }
             },
             Key::Left =>  {
@@ -439,6 +441,12 @@ impl Logic {
     fn spin_tombola(&mut self, team: Team) {
         self.tombolas[team as usize].start_spin();
         self.queue_event_once(Event::TombolaStartedSpinning(team));
+    }
+
+    fn reset_bingo(&mut self, team: Team) {
+        self.tombolas[team as usize].reset();
+        self.bingo_grids[team as usize].reset();
+        self.queue_event_once(Event::BingoReset(team));
     }
 
     fn enter_guess(&mut self) {
