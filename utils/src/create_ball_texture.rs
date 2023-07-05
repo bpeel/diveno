@@ -77,16 +77,25 @@ fn draw_numbered_ball(
     let text = format!("{}", ball_num);
 
     let extents = cr.text_extents(&text)?;
-    cr.move_to(
+
+    let text_x =
         (BALL_SIZE as f64 / 2.0
          - extents.x_bearing()
          - extents.width() / 2.0)
-            .round(),
-        BALL_SIZE as f64 * 0.68,
-    );
+        .round();
+    let text_y = BALL_SIZE as f64 * 0.68;
+
+    cr.move_to(text_x, text_y);
 
     cr.set_source_rgb(1.0, 1.0, 1.0);
     cr.show_text(&text)?;
+
+    if ball_num == 6 || ball_num == 9 {
+        cr.set_line_width(BALL_SIZE as f64 / 20.0);
+        cr.move_to(text_x, text_y + BALL_SIZE as f64 / 10.0);
+        cr.rel_line_to(extents.width(), 0.0);
+        cr.stroke()?;
+    }
 
     cr.restore()?;
 
