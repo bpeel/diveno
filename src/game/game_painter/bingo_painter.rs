@@ -31,12 +31,12 @@ const TEX_SPACES_Y: u32 = 4;
 const BORDER_SIZE: f32 = 0.1;
 
 // Time in milliseconds to flash the space when it is covered
-const FLASH_TIME: i64 = 2000;
+const FLASH_TIME: i64 = 1000;
 // Number of flashes per second
 const FLASHES_PER_SECOND: i64 = 4;
 
 // Total time for the bingo animation
-const BINGO_TIME: i64 = 4000;
+const BINGO_TIME: i64 = 3000;
 // Total time to reveal the BINGO letters
 const BINGO_LETTER_TIME: i64 = BINGO_TIME / 2;
 
