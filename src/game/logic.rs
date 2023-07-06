@@ -441,8 +441,10 @@ impl Logic {
     }
 
     fn spin_tombola(&mut self, team: Team) {
-        self.tombolas[team as usize].start_spin();
-        self.queue_event_once(Event::TombolaStartedSpinning(team));
+        if self.bingo_grids[team as usize].bingo().is_none() {
+            self.tombolas[team as usize].start_spin();
+            self.queue_event_once(Event::TombolaStartedSpinning(team));
+        }
     }
 
     fn reset_bingo(&mut self, team: Team) {
