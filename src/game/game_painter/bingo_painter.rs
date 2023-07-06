@@ -35,6 +35,9 @@ const FLASH_TIME: i64 = 2000;
 // Number of flashes per second
 const FLASHES_PER_SECOND: i64 = 4;
 
+// Total time for the bingo animation
+const BINGO_TIME: i64 = 2000;
+
 struct Flash {
     start_time: timer::Timer,
     space: usize,
@@ -43,6 +46,17 @@ struct Flash {
 struct FlashResult {
     space: usize,
     covered: bool,
+}
+
+struct AnimationTimes {
+    flash: Option<FlashResult>,
+    bingo_time: Option<i64>,
+}
+
+impl AnimationTimes {
+    fn is_animating(&self) -> bool {
+        self.flash.is_some() || self.bingo_time.is_some()
+    }
 }
 
 pub struct BingoPainter {
@@ -61,6 +75,7 @@ pub struct BingoPainter {
     // Used to keep track of whether we need to create a new quad buffer
     most_quads: u32,
     flash: Option<Flash>,
+    bingo_start_time: Option<timer::Timer>,
 }
 
 impl BingoPainter {
@@ -99,11 +114,12 @@ impl BingoPainter {
             vertices: Vec::new(),
             most_quads: 0,
             flash: None,
+            bingo_start_time: None,
         })
     }
 
-    fn update_flash(&mut self) -> Option<FlashResult> {
-        if let Some(flash) = self.flash.as_ref() {
+    fn update_animation_times(&mut self) -> AnimationTimes {
+        let flash = if let Some(flash) = self.flash.as_ref() {
             let elapsed = flash.start_time.elapsed();
 
             if elapsed >= FLASH_TIME {
@@ -117,18 +133,35 @@ impl BingoPainter {
             }
         } else {
             None
+        };
+
+        let bingo_time = self.bingo_start_time.and_then(|start_time| {
+            let millis = start_time.elapsed();
+
+            if millis < FLASH_TIME + BINGO_TIME {
+                Some(millis - FLASH_TIME)
+            } else {
+                self.bingo_start_time = None;
+                None
+            }
+        });
+
+        AnimationTimes {
+            flash,
+            bingo_time,
         }
     }
 
     pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+        let animation_times = self.update_animation_times();
+
         if self.transform_dirty {
             self.update_transform();
             self.transform_dirty = false;
         }
 
         if self.vertices_dirty {
-            let flash = self.update_flash();
-            self.update_vertices(logic, flash);
+            self.update_vertices(logic, &animation_times);
             self.vertices_dirty = false;
         }
 
@@ -158,7 +191,7 @@ impl BingoPainter {
             );
         }
 
-        if self.flash.is_some() {
+        if animation_times.is_animating() {
             self.vertices_dirty = true;
             true
         } else {
@@ -190,7 +223,15 @@ impl BingoPainter {
                     false
                 }
             },
-            logic::Event::Bingo(team, _) |
+            logic::Event::Bingo(team, _) => {
+                if *team == self.team {
+                    self.bingo_start_time = Some(timer::Timer::new());
+                    self.vertices_dirty = true;
+                    true
+                } else {
+                    false
+                }
+            },
             logic::Event::BingoReset(team) => {
                 if *team == self.team {
                     self.vertices_dirty = true;
@@ -246,10 +287,42 @@ impl BingoPainter {
         self.vertices_dirty = true;
     }
 
+    fn bingo_index(
+        index: usize,
+        bingo: Option<bingo_grid::Bingo>,
+        animation_times: &AnimationTimes
+    ) -> Option<u32> {
+        let Some(bingo) = bingo
+        else {
+            return None;
+        };
+
+        let Some(index) = bingo.letter_index_for_space(index as u8)
+        else {
+            return None;
+        };
+
+        match animation_times.bingo_time {
+            Some(bingo_time) => {
+                if bingo_time >= 0
+                    && bingo_time
+                    * bingo_grid::GRID_WIDTH as i64
+                    / BINGO_TIME
+                    >= index as i64
+                {
+                    Some(index as u32)
+                } else {
+                    None
+                }
+            },
+            None => Some(index as u32),
+        }
+    }
+
     fn fill_vertices_array(
         &mut self,
         logic: &logic::Logic,
-        flash: Option<FlashResult>,
+        animation_times: &AnimationTimes,
     ) {
         self.vertices.clear();
 
@@ -264,10 +337,11 @@ impl BingoPainter {
             let x2 = x + 1.0 - BORDER_SIZE;
             let y2 = y + 1.0 - BORDER_SIZE;
 
-
-            let image_index = match bingo.and_then(|b| {
-                b.letter_index_for_space(index as u8)
-            }) {
+            let image_index = match BingoPainter::bingo_index(
+                index,
+                bingo,
+                animation_times
+            ) {
                 None => space.ball as u32,
                 Some(index) => {
                     TEX_SPACES_X * TEX_SPACES_Y
@@ -283,7 +357,7 @@ impl BingoPainter {
             let t1 = (tex_y * 65535 / TEX_SPACES_Y) as u16;
             let s2 = ((tex_x + 1) * 65535 / TEX_SPACES_X) as u16;
             let t2 = ((tex_y + 1) * 65535 / TEX_SPACES_Y) as u16;
-            let color = if flash.as_ref().map(|res| if res.space == index {
+            let color = if animation_times.flash.as_ref().map(|res| if res.space == index {
                 res.covered
             } else {
                 space.covered
@@ -336,9 +410,9 @@ impl BingoPainter {
     fn update_vertices(
         &mut self,
         logic: &logic::Logic,
-        flash: Option<FlashResult>,
+        animation_times: &AnimationTimes,
     ) {
-        self.fill_vertices_array(logic, flash);
+        self.fill_vertices_array(logic, animation_times);
 
         let n_quads = self.vertices.len() as u32 / 4;
 
