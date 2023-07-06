@@ -79,6 +79,7 @@ pub struct BingoGrid {
     spaces: [u8; N_SPACES],
     // Mapping from initial uncovered space index to space index
     initial_uncovered_space_map: [u8; N_INITIAL_SPACES_UNCOVERED],
+    bingo: Option<Bingo>,
 }
 
 impl BingoGrid {
@@ -95,11 +96,13 @@ impl BingoGrid {
             spaces_covered: 0,
             spaces,
             initial_uncovered_space_map: Default::default(),
+            bingo: None,
         }
     }
 
     pub fn reset(&mut self) {
         random::shuffle(&mut self.spaces);
+        self.bingo = None;
         self.spaces_covered = generate_initial_spaces_covered();
 
         let mut spaces_uncovered = !self.spaces_covered & ((1 << N_SPACES) - 1);
@@ -139,6 +142,20 @@ impl BingoGrid {
     pub fn cover_space(&mut self, index: usize) -> Option<Bingo> {
         self.spaces_covered |= 1 << index;
 
+        let bingo = self.bingo_for_covered_space(index);
+
+        if bingo.is_some() {
+            self.bingo = bingo;
+        }
+
+        bingo
+    }
+
+    pub fn bingo(&self) -> Option<Bingo> {
+        self.bingo
+    }
+
+    fn bingo_for_covered_space(&self, index: usize) -> Option<Bingo> {
         let column = (index % GRID_WIDTH) as u32;
         let row = (index / GRID_WIDTH) as u32;
 
@@ -299,6 +316,7 @@ mod test {
     fn bingo() {
         let mut grid = test_grid();
         assert!(grid.cover_space(0).is_none());
+        assert!(grid.bingo().is_none());
         assert!(grid.cover_space(1).is_none());
         assert!(grid.cover_space(2).is_none());
         assert!(grid.cover_space(3).is_none());
@@ -307,6 +325,7 @@ mod test {
         } else {
             unreachable!();
         }
+        assert!(grid.bingo() == Some(Bingo::Row(0)));
 
         let mut grid = test_grid();
         assert!(grid.cover_space(20).is_none());
