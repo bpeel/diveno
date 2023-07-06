@@ -253,15 +253,32 @@ impl BingoPainter {
     ) {
         self.vertices.clear();
 
-        for (index, space) in logic.bingo_grid(self.team).spaces().enumerate() {
+        let bingo_grid = logic.bingo_grid(self.team);
+        let bingo = bingo_grid.bingo();
+
+        for (index, space) in bingo_grid.spaces().enumerate() {
             let x = (index % bingo_grid::GRID_WIDTH) as f32;
             let y = (index / bingo_grid::GRID_WIDTH) as f32;
             let x1 = x + BORDER_SIZE;
             let y1 = y + BORDER_SIZE;
             let x2 = x + 1.0 - BORDER_SIZE;
             let y2 = y + 1.0 - BORDER_SIZE;
-            let tex_x = space.ball as u32 % TEX_SPACES_X;
-            let tex_y = space.ball as u32 / TEX_SPACES_X;
+
+
+            let image_index = match bingo.and_then(|b| {
+                b.letter_index_for_space(index as u8)
+            }) {
+                None => space.ball as u32,
+                Some(index) => {
+                    TEX_SPACES_X * TEX_SPACES_Y
+                        - bingo_grid::GRID_WIDTH as u32
+                        + index as u32
+                },
+            };
+
+            let tex_x = image_index % TEX_SPACES_X;
+            let tex_y = image_index / TEX_SPACES_X;
+
             let s1 = (tex_x * 65535 / TEX_SPACES_X) as u16;
             let t1 = (tex_y * 65535 / TEX_SPACES_Y) as u16;
             let s2 = ((tex_x + 1) * 65535 / TEX_SPACES_X) as u16;
