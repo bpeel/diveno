@@ -38,12 +38,12 @@ const SIDE_WIDTH: f32 = 10.0;
 // Number of milliseconds per turn of the tombola
 const TURN_TIME: i64 = 2000;
 // Number of turns to do before stopping
-const N_TURNS: i64 = 3;
+const N_TURNS: i64 = 1;
 
 // Time to wait after spinning before moving the claw in milliseconds
-const CLAW_WAIT_TIME: i64 = 6000;
+const CLAW_WAIT_TIME: i64 = 2000;
 // Speed of the claw in length units per second
-const CLAW_SPEED: f32 = APOTHEM / 2.0;
+const CLAW_SPEED: f32 = APOTHEM;
 // Maximum distance to travel away from the tombola centre
 const CLAW_MAX: f32 = APOTHEM / 0.8660254037844387
     + SIDE_WIDTH / 2.0
