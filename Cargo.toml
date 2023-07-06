@@ -10,6 +10,7 @@ repository = "https://github.com/bpeel/diveno"
 crate-type = ["cdylib"]
 
 [dependencies]
+color_space = "0.5.3"
 glow = "0.12.2"
 nalgebra = "0.32.2"
 rapier2d = "0.17.2"

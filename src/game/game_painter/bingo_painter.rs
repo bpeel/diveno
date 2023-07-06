@@ -36,7 +36,12 @@ const FLASH_TIME: i64 = 2000;
 const FLASHES_PER_SECOND: i64 = 4;
 
 // Total time for the bingo animation
-const BINGO_TIME: i64 = 2000;
+const BINGO_TIME: i64 = 4000;
+// Total time to reveal the BINGO letters
+const BINGO_LETTER_TIME: i64 = BINGO_TIME / 2;
+
+const COVERED_COLOR: [u8; 3] = [0xe7, 0x00, 0x2a];
+const UNCOVERED_COLOR: [u8; 3] = [0x00, 0x77, 0xc7];
 
 struct Flash {
     start_time: timer::Timer,
@@ -307,7 +312,7 @@ impl BingoPainter {
                 if bingo_time >= 0
                     && bingo_time
                     * bingo_grid::GRID_WIDTH as i64
-                    / BINGO_TIME
+                    / BINGO_LETTER_TIME
                     >= index as i64
                 {
                     Some(index as u32)
@@ -316,6 +321,71 @@ impl BingoPainter {
                 }
             },
             None => Some(index as u32),
+        }
+    }
+
+    fn rainbow_color(index: u8, bingo_time: i64) -> [u8; 3] {
+        let rainbow_end = bingo_time as f64
+            * bingo_grid::GRID_WIDTH as f64
+            / BINGO_TIME as f64
+            * 2.0;
+
+        let index = index as f64;
+
+        if index < rainbow_end - bingo_grid::GRID_WIDTH as f64
+            || index >= rainbow_end
+        {
+            return COVERED_COLOR;
+        }
+
+        let hsv = color_space::Hsv::new(
+            (rainbow_end - index)
+                / bingo_grid::GRID_WIDTH as f64
+                * 360.0,
+            1.0,
+            1.0,
+        );
+        let rgb = color_space::Rgb::from(hsv);
+
+        [
+            rgb.r.round() as u8,
+            rgb.g.round() as u8,
+            rgb.b.round() as u8
+        ]
+    }
+
+    fn square_color(
+        index: usize,
+        covered: bool,
+        animation_times: &AnimationTimes,
+        bingo: Option<bingo_grid::Bingo>,
+    ) -> [u8; 3] {
+        if let Some(index) = bingo.and_then(|b| {
+            b.letter_index_for_space(index as u8)
+        }) {
+            match animation_times.bingo_time {
+                Some(bingo_time) => {
+                    if bingo_time >= 0 {
+                        return BingoPainter::rainbow_color(index, bingo_time);
+                    }
+                },
+                None => return COVERED_COLOR,
+            };
+        }
+
+        let covered = match animation_times.flash.as_ref() {
+            Some(flash) => if flash.space as usize == index {
+                flash.covered
+            } else {
+                covered
+            },
+            None => covered,
+        };
+
+        if covered {
+            COVERED_COLOR
+        } else {
+            UNCOVERED_COLOR
         }
     }
 
@@ -357,16 +427,13 @@ impl BingoPainter {
             let t1 = (tex_y * 65535 / TEX_SPACES_Y) as u16;
             let s2 = ((tex_x + 1) * 65535 / TEX_SPACES_X) as u16;
             let t2 = ((tex_y + 1) * 65535 / TEX_SPACES_Y) as u16;
-            let color = if animation_times.flash.as_ref().map(|res| if res.space == index {
-                res.covered
-            } else {
-                space.covered
-            }).unwrap_or(space.covered)
-            {
-                [0xe7, 0x00, 0x2a]
-            } else {
-                [0x00, 0x77, 0xc7]
-            };
+
+            let color = BingoPainter::square_color(
+                index,
+                space.covered,
+                animation_times,
+                bingo,
+            );
 
             self.vertices.push(Vertex {
                 x: x1,
