@@ -66,7 +66,7 @@ pub const WALL_X: f32 = TOMBOLA_EXTENT + BALL_SIZE * 1.01;
 // Y position of the sides of the slope
 const MIDDLE_SLOPE_Y: f32 = -WALL_X;
 pub const RIGHT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y + BALL_SIZE;
-pub const LEFT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y - BALL_SIZE * 2.0;
+pub const LEFT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y - BALL_SIZE;
 const SLOPE_WIDTH: f32 = BALL_SIZE;
 
 pub struct Ball {
