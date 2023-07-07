@@ -255,6 +255,7 @@ fn pick_nth_one_bit(mut bits: u32, mut n: u32) -> u32 {
 struct CoveredSpacesGenerator {
     spaces_covered: u32,
     available: u32,
+    count: u8,
 }
 
 impl CoveredSpacesGenerator {
@@ -262,17 +263,29 @@ impl CoveredSpacesGenerator {
         CoveredSpacesGenerator {
             spaces_covered: 0,
             available: (1u32 << N_SPACES as u32) - 1,
+            count: 0,
+        }
+    }
+
+    fn available(&self) -> u32 {
+        // Don’t pick the middle square until the end because it can
+        // lead to dead ends
+        if (self.count as usize) < N_INITIAL_SPACES_COVERED - 1 {
+            self.available & !(1 << (GRID_HEIGHT / 2 * GRID_WIDTH
+                                     + GRID_WIDTH / 2))
+        } else {
+            self.available
         }
     }
 
     fn next_random_number_range(&self) -> usize {
-        let n_available = self.available.count_ones() as usize;
+        let n_available = self.available().count_ones() as usize;
         assert!(n_available > 0 && n_available <= N_SPACES);
         n_available
     }
 
     fn cover_next_space(&mut self, random_number: usize) {
-        let chosen = pick_nth_one_bit(self.available, random_number as u32);
+        let chosen = pick_nth_one_bit(self.available(), random_number as u32);
 
         assert!(self.spaces_covered & (1 << chosen) == 0);
 
@@ -292,6 +305,8 @@ impl CoveredSpacesGenerator {
         if GRID_HEIGHT as u32 - 1 - row == column {
             self.limit_for_mask(mask_for_diagonal_b());
         }
+
+        self.count += 1;
     }
 
     fn limit_for_mask(&mut self, mask: u32) {
