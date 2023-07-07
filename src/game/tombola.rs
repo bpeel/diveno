@@ -42,6 +42,11 @@ const SIDE_WIDTH: f32 = 6.0;
 // single point where the sides touch.
 const EXTENDED_SIDE_LENGTH: f32 = SIDE_LENGTH + SIDE_WIDTH * 2.0;
 
+// Furthest point that the outside of the rigid bodies that form the
+// tombola will extend to.
+// This is (APOTHEM + SIDE_WIDTH).hypot(EXTENDED_SIDE_LENGTH / 2.0)
+const TOMBOLA_EXTENT: f32 = 65.96774586756098;
+
 // Number of milliseconds per turn of the tombola
 const TURN_TIME: i64 = 2000;
 // Number of turns to do before stopping
@@ -55,10 +60,11 @@ const CLAW_SPEED: f32 = APOTHEM;
 const CLAW_MAX: f32 = RADIUS
     + SIDE_WIDTH / 2.0
     + BALL_SIZE / 2.0;
-// Where to position the walls at the sides the tombola to catch the balls
-pub const WALL_X: f32 = CLAW_MAX + BALL_SIZE;
+// Where to position the walls at the sides the tombola to catch the
+// balls. Add a little leeway so the balls don’t get stuck.
+pub const WALL_X: f32 = TOMBOLA_EXTENT + BALL_SIZE * 1.01;
 // Y position of the sides of the slope
-const MIDDLE_SLOPE_Y: f32 = -RADIUS - SIDE_WIDTH - BALL_SIZE * 1.1;
+const MIDDLE_SLOPE_Y: f32 = -WALL_X;
 pub const RIGHT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y + BALL_SIZE;
 pub const LEFT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y - BALL_SIZE * 2.0;
 const SLOPE_WIDTH: f32 = BALL_SIZE;
