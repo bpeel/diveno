@@ -67,6 +67,11 @@ pub struct Ball {
 
 enum SpinStage {
     None,
+    // This extra step before actually starting the spin is so that we
+    // can set the spin start time when the rotation is first updated.
+    // Otherwise the simulation might be asleep and the steps_executed
+    // value will jump ahead after setting it.
+    WaitingToStart,
     Spinning(i64),
     Waiting(i64),
     Descending(i64),
@@ -201,6 +206,10 @@ impl Tombola {
     }
 
     fn update_rotation(&mut self) -> bool {
+        if matches!(self.spin_stage, SpinStage::WaitingToStart) {
+            self.spin_stage = SpinStage::Spinning(self.steps_executed);
+        }
+
         if let SpinStage::Spinning(start_steps) = self.spin_stage {
             let executed = self.steps_executed - start_steps;
             let n_turns = executed * 1000 / STEPS_PER_SECOND / TURN_TIME;
@@ -225,6 +234,7 @@ impl Tombola {
 
     fn update_claw(&mut self) {
         match self.spin_stage {
+            SpinStage::WaitingToStart |
             SpinStage::Spinning(_) |
             SpinStage::None => {
                 self.claw_x = 0.0;
@@ -480,7 +490,7 @@ impl Tombola {
 
     pub fn start_spin(&mut self) {
         if matches!(self.spin_stage, SpinStage::None) {
-            self.spin_stage = SpinStage::Spinning(self.steps_executed);
+            self.spin_stage = SpinStage::WaitingToStart;
             self.unfreeze_sides();
         }
     }
