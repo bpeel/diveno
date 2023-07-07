@@ -234,14 +234,6 @@ fn mask_for_diagonal_b() -> u32 {
         .fold(0, |a, b| a | b)
 }
 
-fn limit_for_mask(spaces_covered: u32, mask: u32, available: &mut u32) {
-    if (spaces_covered & mask).count_ones() as usize
-        >= MAX_INITIAL_COVERED_SPACES_PER_LINE
-    {
-        *available &= !mask;
-    }
-}
-
 fn pick_nth_one_bit(mut bits: u32, mut n: u32) -> u32 {
     for i in 0..u32::BITS {
         if bits & 1 != 0 {
@@ -257,45 +249,69 @@ fn pick_nth_one_bit(mut bits: u32, mut n: u32) -> u32 {
     unreachable!("Tried to pick bit {} but there wasn’t enough ones", n);
 }
 
-fn generate_initial_spaces_covered() -> u32 {
-    let mut spaces_covered = 0;
-    let mut available = (1u32 << N_SPACES as u32) - 1;
+// This is split out as a struct to make it easy to write a unit test
+// that tries every random number.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct CoveredSpacesGenerator {
+    spaces_covered: u32,
+    available: u32,
+}
 
-    for _ in 0..N_INITIAL_SPACES_COVERED {
-        let n_available = available.count_ones() as usize;
+impl CoveredSpacesGenerator {
+    fn new() -> CoveredSpacesGenerator {
+        CoveredSpacesGenerator {
+            spaces_covered: 0,
+            available: (1u32 << N_SPACES as u32) - 1,
+        }
+    }
+
+    fn next_random_number_range(&self) -> usize {
+        let n_available = self.available.count_ones() as usize;
         assert!(n_available > 0 && n_available <= N_SPACES);
-        let chosen = pick_nth_one_bit(
-            available,
-            random::random_range(n_available) as u32,
-        );
+        n_available
+    }
 
-        assert!(spaces_covered & (1 << chosen) == 0);
+    fn cover_next_space(&mut self, random_number: usize) {
+        let chosen = pick_nth_one_bit(self.available, random_number as u32);
 
-        spaces_covered |= 1 << chosen;
-        available &= !(1 << chosen);
+        assert!(self.spaces_covered & (1 << chosen) == 0);
+
+        self.spaces_covered |= 1 << chosen;
+        self.available &= !(1 << chosen);
 
         let row = chosen / GRID_WIDTH as u32;
-        limit_for_mask(spaces_covered, mask_for_row(row), &mut available);
+        self.limit_for_mask(mask_for_row(row));
 
         let column = chosen % GRID_WIDTH as u32;
-        limit_for_mask(spaces_covered, mask_for_column(column), &mut available);
+        self.limit_for_mask(mask_for_column(column));
 
         if row == column {
-            limit_for_mask(
-                spaces_covered,
-                mask_for_diagonal_a(),
-                &mut available,
-            );
+            self.limit_for_mask(mask_for_diagonal_a());
         }
 
         if GRID_HEIGHT as u32 - 1 - row == column {
-            limit_for_mask(
-                spaces_covered,
-                mask_for_diagonal_b(),
-                &mut available,
-            );
+            self.limit_for_mask(mask_for_diagonal_b());
         }
     }
+
+    fn limit_for_mask(&mut self, mask: u32) {
+        if (self.spaces_covered & mask).count_ones() as usize
+            >= MAX_INITIAL_COVERED_SPACES_PER_LINE
+        {
+            self.available &= !mask;
+        }
+    }
+}
+
+fn generate_initial_spaces_covered() -> u32 {
+    let mut generator = CoveredSpacesGenerator::new();
+
+    for _ in 0..N_INITIAL_SPACES_COVERED {
+        let random_range = generator.next_random_number_range();
+        generator.cover_next_space(random::random_range(random_range));
+    }
+
+    let spaces_covered = generator.spaces_covered;
 
     assert_eq!(spaces_covered.count_ones() as usize, N_INITIAL_SPACES_COVERED);
 
@@ -305,6 +321,7 @@ fn generate_initial_spaces_covered() -> u32 {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::collections::HashSet;
 
     fn test_grid() -> BingoGrid {
         let mut grid = BingoGrid::new();
@@ -430,5 +447,101 @@ mod test {
         assert_eq!(bingo.letter_index_for_space(0), None);
         assert_eq!(bingo.letter_index_for_space(6), None);
         assert_eq!(bingo.letter_index_for_space(24), None);
+    }
+
+    struct StackEntry {
+        next_random_number: usize,
+        state: CoveredSpacesGenerator,
+    }
+
+    fn print_grid(spaces_covered: u32) {
+        for y in 0..GRID_HEIGHT {
+            for x in 0..GRID_WIDTH {
+                let pos = x + y * GRID_WIDTH;
+
+                let ch = if spaces_covered & (1 << pos) != 0 {
+                    '#'
+                } else {
+                    '.'
+                };
+
+                print!("{}", ch);
+            }
+
+            println!();
+        }
+    }
+
+    fn validate_initial_spaces_covered(spaces_covered: u32) {
+        assert_eq!(
+            spaces_covered.count_ones() as usize,
+            N_INITIAL_SPACES_COVERED,
+        );
+
+        for row in 0..GRID_HEIGHT {
+            let n_spaces = (0..GRID_WIDTH).filter(|x| {
+                spaces_covered & (1 << ((row * GRID_WIDTH) + x)) != 0
+            }).count();
+            assert!(n_spaces <= MAX_INITIAL_COVERED_SPACES_PER_LINE);
+        }
+
+        for col in 0..GRID_WIDTH {
+            let n_spaces = (0..GRID_HEIGHT).filter(|y| {
+                spaces_covered & (1 << ((y * GRID_WIDTH) + col)) != 0
+            }).count();
+            assert!(n_spaces <= MAX_INITIAL_COVERED_SPACES_PER_LINE);
+        }
+
+        let n_spaces = (0..GRID_WIDTH).filter(|i| {
+            spaces_covered & (1 << ((i * GRID_WIDTH) + i)) != 0
+        }).count();
+        assert!(n_spaces <= MAX_INITIAL_COVERED_SPACES_PER_LINE);
+
+        let n_spaces = (0..GRID_WIDTH).filter(|i| {
+            spaces_covered
+                & (1 << ((i * GRID_WIDTH) + (GRID_WIDTH - 1 - i)))
+                != 0
+        }).count();
+        assert!(n_spaces <= MAX_INITIAL_COVERED_SPACES_PER_LINE);
+    }
+
+    #[test]
+    fn generate_all_initial_grids() {
+        let mut stack = vec![StackEntry {
+            next_random_number: 0,
+            state: CoveredSpacesGenerator::new(),
+        }];
+
+        let mut visited_states = HashSet::new();
+
+        while let Some(mut entry) = stack.pop() {
+            if entry.state.available == 0 {
+                println!("no spaces left:");
+                print_grid(entry.state.spaces_covered);
+                unreachable!();
+            }
+
+            let range = entry.state.next_random_number_range();
+
+            if entry.next_random_number >= range {
+                continue;
+            }
+
+            let mut next_state = entry.state.clone();
+            next_state.cover_next_space(entry.next_random_number);
+
+            entry.next_random_number += 1;
+
+            stack.push(entry);
+
+            if stack.len() >= N_INITIAL_SPACES_COVERED {
+                validate_initial_spaces_covered(next_state.spaces_covered);
+            } else if visited_states.insert(next_state.clone()) {
+                stack.push(StackEntry {
+                    next_random_number: 0,
+                    state: next_state,
+                });
+            }
+        }
     }
 }
