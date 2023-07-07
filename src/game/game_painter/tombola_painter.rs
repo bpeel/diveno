@@ -33,15 +33,12 @@ const N_CLAW_VERTICES: usize = 4;
 const FIRST_WALL_VERTEX: usize = FIRST_CLAW_VERTEX + N_CLAW_VERTICES;
 const N_WALL_VERTICES: usize = 8;
 
-// Width of the side of the tombola, in the same units as the tombola module
-const SIDE_WIDTH: f32 = tombola::BALL_SIZE / 2.0;
-
 // Dimensions of the claw in the same units as the tombola module
 const CLAW_WIDTH: f32 = tombola::BALL_SIZE / 63.7 * 83.328;
 const CLAW_HEIGHT: f32 = CLAW_WIDTH * 2.0;
 
 // Width of the walls to the sides of the tombola and the slope
-const WALL_WIDTH: f32 = SIDE_WIDTH;
+const WALL_WIDTH: f32 = tombola::SIDE_WIDTH;
 
 #[repr(C)]
 struct Vertex {
@@ -682,7 +679,7 @@ fn create_tombola_buffer(
     paint_data: &PaintData,
 ) -> Result<Rc<Buffer>, String> {
     let inner_radius = tombola::APOTHEM / (PI / tombola::N_SIDES as f32).cos();
-    let outer_radius = inner_radius + SIDE_WIDTH;
+    let outer_radius = inner_radius + tombola::SIDE_WIDTH;
     let mut vertices = Vec::with_capacity(FIRST_CLAW_VERTEX + N_CLAW_VERTICES);
 
     for side in 0..tombola::N_SIDES {

@@ -36,7 +36,7 @@ pub const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
 // APOTHEM / (PI / N_SIDES as f32).cos()
 const RADIUS: f32 = APOTHEM / 0.8660254037844387;
 // Width of the side of the tombola
-const SIDE_WIDTH: f32 = 6.0;
+pub const SIDE_WIDTH: f32 = 6.0;
 // The width is added to the length so that the ends of the sides will
 // overlap. Otherwise the balls can sometimes escape through the
 // single point where the sides touch.
