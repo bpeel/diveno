@@ -18,12 +18,12 @@ use rapier2d::prelude::*;
 use super::timer::Timer;
 use std::f32::consts::PI;
 
-pub const BALL_SIZE: f32 = 12.0;
+pub const BALL_SIZE: f32 = 6.0;
 const STEPS_PER_SECOND: i64 = 60;
 
 // Distance from the centre of the tombola to the inner part of the
 // middle of a side
-pub const APOTHEM: f32 = 50.0;
+pub const APOTHEM: f32 = 20.0;
 // Number of sides of the tombola shape (it’s a hexagon)
 pub const N_SIDES: u32 = 6;
 
@@ -36,7 +36,7 @@ const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
 // APOTHEM / (PI / N_SIDES as f32).cos()
 const RADIUS: f32 = APOTHEM / 0.8660254037844387;
 // Width of the side of the tombola
-pub const SIDE_WIDTH: f32 = 6.0;
+pub const SIDE_WIDTH: f32 = 3.0;
 // The width is added to the length so that the ends of the sides will
 // overlap. Otherwise the balls can sometimes escape through the
 // single point where the sides touch.
@@ -45,7 +45,7 @@ const EXTENDED_SIDE_LENGTH: f32 = SIDE_LENGTH + SIDE_WIDTH * 2.0;
 // Furthest point that the outside of the rigid bodies that form the
 // tombola will extend to.
 // This is (APOTHEM + SIDE_WIDTH).hypot(EXTENDED_SIDE_LENGTH / 2.0)
-const TOMBOLA_EXTENT: f32 = 65.96774586756098;
+const TOMBOLA_EXTENT: f32 = 27.21424931237473;
 
 // Number of milliseconds per turn of the tombola
 const TURN_TIME: i64 = 2000;
@@ -203,7 +203,7 @@ impl Tombola {
             multibody_joint_set: MultibodyJointSet::new(),
             ccd_solver: CCDSolver::new(),
             query_pipeline: QueryPipeline::new(),
-            gravity: vector![0.0, -9.81],
+            gravity: vector![0.0, -981.0],
             ball_handles,
             side_handles,
         }
