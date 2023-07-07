@@ -31,7 +31,7 @@ pub const N_SIDES: u32 = 6;
 // https://en.wikipedia.org/wiki/Regular_polygon#Circumradius
 // Rustc can’t do const trigonometry so this is:
 // 2.0 * (PI / N_SIDES as f32).tan() * APOTHEM
-pub const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
+const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
 // Radius of the circle surrounding the inside shape of the tombola
 // APOTHEM / (PI / N_SIDES as f32).cos()
 const RADIUS: f32 = APOTHEM / 0.8660254037844387;
