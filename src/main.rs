@@ -23,6 +23,7 @@ use sdl2;
 use sdl2::event::{Event, WindowEvent};
 use sdl2::mixer::{Channel, Chunk};
 use sdl2::keyboard::Keycode;
+use sdl2::video::FullscreenType;
 use std::process::ExitCode;
 use std::rc::Rc;
 use glow::HasContext;
@@ -113,6 +114,7 @@ struct GameData<'a> {
     game_painter: game_painter::GamePainter,
     redraw_queued: bool,
     should_quit: bool,
+    is_fullscreen: bool,
 }
 
 impl<'a> GameData<'a> {
@@ -142,7 +144,20 @@ impl<'a> GameData<'a> {
             game_painter,
             redraw_queued: true,
             should_quit: false,
+            is_fullscreen: false,
         })
+    }
+}
+
+fn toggle_fullscreen(game_data: &mut GameData) {
+    if game_data.context.window.set_fullscreen(
+        if !game_data.is_fullscreen {
+            FullscreenType::True
+        } else {
+            FullscreenType::Off
+        }
+    ).is_ok() {
+        game_data.is_fullscreen = !game_data.is_fullscreen;
     }
 }
 
@@ -159,6 +174,7 @@ fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
         Keycode::Right => game_data.logic.press_key(logic::Key::Right),
         Keycode::Up => game_data.logic.press_key(logic::Key::Up),
         Keycode::Down => game_data.logic.press_key(logic::Key::Down),
+        Keycode::F11 => toggle_fullscreen(game_data),
         code => {
             if let Some(ch) = char::from_u32(code as u32) {
                 if ch.is_alphabetic() {
