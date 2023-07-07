@@ -37,6 +37,10 @@ pub const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
 const RADIUS: f32 = APOTHEM / 0.8660254037844387;
 // Width of the side of the tombola
 const SIDE_WIDTH: f32 = 10.0;
+// The width is added to the length so that the ends of the sides will
+// overlap. Otherwise the balls can sometimes escape through the
+// single point where the sides touch.
+const EXTENDED_SIDE_LENGTH: f32 = SIDE_LENGTH + SIDE_WIDTH * 2.0;
 
 // Number of milliseconds per turn of the tombola
 const TURN_TIME: i64 = 2000;
@@ -152,11 +156,7 @@ impl Tombola {
             let side_handle = rigid_body_set.insert(side_body);
 
             let collider = ColliderBuilder::cuboid(
-                // The width is added to the length so that the ends
-                // of the sides will overlap. Otherwise the balls can
-                // sometimes escape through the single point where the
-                // sides touch.
-                SIDE_LENGTH / 2.0 + SIDE_WIDTH,
+                EXTENDED_SIDE_LENGTH / 2.0,
                 SIDE_WIDTH / 2.0,
             ).restitution(0.7)
                 .user_data(u128::MAX)
