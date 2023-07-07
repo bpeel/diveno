@@ -32,6 +32,9 @@ pub const N_SIDES: u32 = 6;
 // Rustc can’t do const trigonometry so this is:
 // 2.0 * (PI / N_SIDES as f32).tan() * APOTHEM
 pub const SIDE_LENGTH: f32 = 2.0 * 0.5773502691896257 * APOTHEM;
+// Radius of the circle surrounding the inside shape of the tombola
+// APOTHEM / (PI / N_SIDES as f32).cos()
+const RADIUS: f32 = APOTHEM / 0.8660254037844387;
 // Width of the side of the tombola
 const SIDE_WIDTH: f32 = 10.0;
 
@@ -45,15 +48,13 @@ const CLAW_WAIT_TIME: i64 = 2000;
 // Speed of the claw in length units per second
 const CLAW_SPEED: f32 = APOTHEM;
 // Maximum distance to travel away from the tombola centre
-const CLAW_MAX: f32 = APOTHEM / 0.8660254037844387
+const CLAW_MAX: f32 = RADIUS
     + SIDE_WIDTH / 2.0
     + BALL_SIZE / 2.0;
 // Where to position the walls at the sides the tombola to catch the balls
 pub const WALL_X: f32 = CLAW_MAX + BALL_SIZE;
 // Y position of the sides of the slope
-const MIDDLE_SLOPE_Y: f32 = -APOTHEM / 0.8660254037844387
-    - SIDE_WIDTH
-    - BALL_SIZE * 1.1;
+const MIDDLE_SLOPE_Y: f32 = -RADIUS - SIDE_WIDTH - BALL_SIZE * 1.1;
 pub const RIGHT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y + BALL_SIZE;
 pub const LEFT_SLOPE_Y: f32 = MIDDLE_SLOPE_Y - BALL_SIZE * 2.0;
 const SLOPE_WIDTH: f32 = BALL_SIZE;
