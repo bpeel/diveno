@@ -1,3 +1,9 @@
+body {
+    background-color: #009688;
+    font-family: sans-serif;
+    overscroll-behavior-y: contain;
+}
+
 #canvas {
     position: fixed;
     left: 0;
@@ -10,4 +16,54 @@
 #message {
     font-size: large;
     text-align: center;
+}
+
+#start-paragraph {
+    text-align: center;
+}
+
+#start-button {
+    font-size: x-large;
+}
+
+#instructions {
+    background-color: #eeeeee;
+}
+
+#instructions p, #instructions h1, #instructions h2, #instructions h3, #instructions table {
+    margin-left: 1vw;
+    margin-right: 1vw;
+}
+
+.keys tr th {
+    background-color: #dddddd;
+}
+
+.keys td {
+    border: 2pt #dddddd solid;
+}
+
+.keys {
+    border-collapse: collapse;
+}
+
+@media only all and (max-width: 45em) {
+    #instructions {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        margin-left: 0px;
+        margin-right: 0px;
+        border-radius: 0px;
+    }
+}
+
+@media not all and (max-width: 45em) {
+    #instructions {
+        max-width: 40em;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 4px;
+    }
 }

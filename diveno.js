@@ -16,4 +16,8 @@
 
 import init_wasm, { init_diveno } from "./pkg/diveno.js";
 
-init_wasm().then(() => init_diveno());
+document.getElementById("start-button").onclick = function() {
+  document.getElementById("instructions").style.display = "none";
+  document.getElementById("message").style.display = "block";
+  init_wasm().then(() => init_diveno());
+};

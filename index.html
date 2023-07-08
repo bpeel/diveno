@@ -21,12 +21,103 @@
 <html lang="eo">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ludu vortan ludon similan al Lingo kun viaj esperantistaj amikoj.">
     <title>Diveno</title>
     <link rel="stylesheet" type="text/css" href="diveno.css">
     <script type="module" src="diveno.js"></script>
   </head>
   <body>
-    <p id="message">Ŝarĝado…</p>
+    <p id="message" style="display: none">Ŝarĝado…</p>
     <canvas id="canvas" style="display: none"></canvas>
+    <div id="instructions">
+      <h1>Diveno</h1>
+      <p>
+        Ĉi tio estas retpaĝo por okazigi vortludon similan al Lingo
+        (aŭ Motus en Francujo). Ĝi celas esti ilo por ke unu
+        prezentisto prezentu la ludon al la ludantoj. Oni povus ludi
+        ekzemple dum esperanta renkontiĝo kun projekciilo aŭ per
+        videokonferenco se oni kunhavigas sian ekranon. La retejo ne
+        devigas la regulojn de la ludo kaj tiel la prezentisto povas
+        ŝanĝeti la regulojn laŭvole.
+      </p>
+      <p id="start-paragraph">
+        <button id="start-button">Komenci!</button>
+      </p>
+      <h2>Paĝoj</h2>
+      <p>
+        La ludo estas dividita en tri paĝojn. La ĉefa paĝo en la mezo
+        estas la vortluda parto kie homoj povas diveni la vorton. Ĉe
+        la dekstra kaj maldekstra flankoj de tiu paĝo estas paĝo por
+        ĉiu teamo kun tombolo kaj krado de bingo.
+      </p>
+      <h2>Keys</h2>
+      <p>Por ludi la prezentisto devas memori kelkajn fulmoklavojn:</p>
+      <h3>Iu ajn paĝo</h3>
+      <table class="keys">
+        <tr><th>Klavo</th><th>Ago</th></tr>
+        <tr><td>←, →</td><td>Moviĝi inter la tri paĝoj</td></tr>
+        <tr>
+          <td>↑, ↓</td>
+          <td>Aldoni aŭ forigi 10 poentojn de teamo. La celo estas
+            povi korekti erarojn de la prezentisto.</td>
+        </tr>
+        <tr>
+          <td>Spaco</td>
+          <td>Baskuli inter la du teamoj. Kiam oni divenas vorton aŭ
+          atingas bingon la aktuala teamo ricevas la poentojn.</td>
+        </tr>
+      </table>
+      <h3>Vortluda paĝo</h3>
+      <table class="keys">
+        <tr><th>Klavo</th><th>Ago</th></tr>
+        <tr>
+          <td>Iu ajn litero</td>
+          <td>Aldoni literon al la aktuala diveno. Oni povas tajpi X
+            por aldoni ĉapelon al la lasta litero. Se onia
+            klavararanĝo havas senpaŝan klavon oni povas uzi ankaŭ
+            tion por tajpi la ĉapelojn.</td>
+        </tr>
+        <tr>
+          <td>Eniga klavo</td>
+          <td>Enigi la aktualan divenon. Se ĝi ne estas konata vorto
+          en la vortaro de la retpaĝo ĝi malakceptiĝos.</td>
+        </tr>
+        <tr>
+          <td>Retropaŝa klavo</td>
+          <td>Forigi la lastan literon de la divenata vorto.</td>
+        </tr>
+        <tr>
+          <td>Foriga klavo</td>
+          <td>Malakcepti la divenon. Kutime oni farus tion post kiam
+          teamo proponas nevalidan vorton antaŭ ol baskuli al la alia
+          teamo.</td>
+        </tr>
+        <tr>
+          <td>Paĝosuben-klavo</td>
+          <td>Aldoni indikan literon al la divenata vorto. Kutime oni
+          farus tion antaŭ ol baskuli al la alia teamo.</td>
+        </tr>
+        <tr>
+          <td>Hejma klavo</td>
+          <td>Elekti novan vorton kaj malplenigi la kradon.</td>
+        </tr>
+      </table>
+      <h3>Paĝo de la krado de bingo</h3>
+      <table class="keys">
+        <tr><th>Klavo</th><th>Ago</th></tr>
+        <tr>
+          <td>Eniga butono</td>
+          <td>Turni la tombolon kaj preni pilkon. Se la pilko havas
+          numeron ĝi ruĝiĝas en la krado. Se tio faras linion la teamo
+          de la paĝo ricevas 100 poentojn.</td>
+        </tr>
+        <tr>
+          <td>Hejma klavo</td>
+          <td>Restarigi la bingan kradon de la teamo kaj remeti ĉiujn
+          pilkojn en la tombolon.</td>
+        </tr>
+      </table>
+    </div>
   </body>
 </html>
