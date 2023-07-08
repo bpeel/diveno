@@ -203,7 +203,7 @@ impl Tombola {
             multibody_joint_set: MultibodyJointSet::new(),
             ccd_solver: CCDSolver::new(),
             query_pipeline: QueryPipeline::new(),
-            gravity: vector![0.0, -981.0],
+            gravity: vector![0.0, -500.0],
             ball_handles,
             side_handles,
         }
