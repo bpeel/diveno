@@ -79,11 +79,6 @@ pub struct Ball {
 
 enum SpinStage {
     None,
-    // This extra step before actually starting the spin is so that we
-    // can set the spin start time when the rotation is first updated.
-    // Otherwise the simulation might be asleep and the steps_executed
-    // value will jump ahead after setting it.
-    WaitingToStart,
     Spinning(i64),
     Waiting(i64),
     Descending(i64),
@@ -100,6 +95,10 @@ pub struct Tombola {
     n_balls: usize,
 
     start_time: Timer,
+    // If time jumps too much between calls to step() then we’ll
+    // adjust the timer as if no time has passed instead of trying to
+    // catch up.
+    timer_offset: i64,
     steps_executed: i64,
     spin_stage: SpinStage,
 
@@ -183,6 +182,7 @@ impl Tombola {
             n_balls,
 
             start_time: Timer::new(),
+            timer_offset: 0,
             steps_executed: 0,
             spin_stage: SpinStage::None,
 
@@ -214,10 +214,6 @@ impl Tombola {
     }
 
     fn update_rotation(&mut self) -> bool {
-        if matches!(self.spin_stage, SpinStage::WaitingToStart) {
-            self.spin_stage = SpinStage::Spinning(self.steps_executed);
-        }
-
         if let SpinStage::Spinning(start_steps) = self.spin_stage {
             let executed = self.steps_executed - start_steps;
             let n_turns = executed * 1000 / STEPS_PER_SECOND / TURN_TIME;
@@ -242,7 +238,6 @@ impl Tombola {
 
     fn update_claw(&mut self) {
         match self.spin_stage {
-            SpinStage::WaitingToStart |
             SpinStage::Spinning(_) |
             SpinStage::None => {
                 self.claw_x = 0.0;
@@ -439,12 +434,17 @@ impl Tombola {
         // but if too much time has passed then assume the simulation
         // has paused and start counting from scratch
 
-        let elapsed = self.start_time.elapsed();
+        let real_elapsed = self.start_time.elapsed();
+        let elapsed = real_elapsed - self.timer_offset;
         let target_steps = elapsed * STEPS_PER_SECOND / 1000;
         let n_steps = target_steps - self.steps_executed;
 
         if n_steps < 0 || n_steps > 4 {
-            self.steps_executed = target_steps;
+            // Adjust the timer so that it will be as if no time has
+            // passed since the last step was executed. That way we
+            // will execute one step next time.
+            self.timer_offset = real_elapsed -
+                self.steps_executed * 1000 / STEPS_PER_SECOND;
         } else {
             for _ in 0..n_steps {
                 self.update_sides();
@@ -498,7 +498,7 @@ impl Tombola {
 
     pub fn start_spin(&mut self) {
         if matches!(self.spin_stage, SpinStage::None) {
-            self.spin_stage = SpinStage::WaitingToStart;
+            self.spin_stage = SpinStage::Spinning(self.steps_executed);
             self.unfreeze_sides();
         }
     }
