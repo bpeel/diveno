@@ -18,6 +18,7 @@ mod game;
 mod sdl_images;
 
 use game::{logic, shaders, images, game_painter, paint_data, sound_queue};
+use game::timeout;
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
@@ -27,6 +28,7 @@ use sdl2::video::FullscreenType;
 use std::process::ExitCode;
 use std::rc::Rc;
 use glow::HasContext;
+use timeout::Timeout;
 
 struct Context {
     _audio_subsystem: sdl2::AudioSubsystem,
@@ -250,12 +252,14 @@ fn main_loop(game_data: &mut GameData) {
             redraw(game_data);
         } else {
             let event = match game_data.sound_queue.next_delay() {
-                Some(timeout) => {
+                Timeout::Milliseconds(timeout) => {
                     game_data.context.event_pump.wait_event_timeout(
                         timeout as u32
                     )
                 },
-                None => Some(game_data.context.event_pump.wait_event()),
+                Timeout::Forever => {
+                    Some(game_data.context.event_pump.wait_event())
+                }
             };
 
             if let Some(event) = event {

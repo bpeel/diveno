@@ -26,6 +26,7 @@ use game::paint_data::PaintData;
 use game::game_painter::GamePainter;
 use game::sound_queue::SoundQueue;
 use game::timer::Timer;
+use game::timeout::Timeout;
 
 fn show_error(message: &str) {
     console::log_1(&message.into());
@@ -523,7 +524,7 @@ impl Diveno {
     }
 
     fn update_next_sound(&mut self) {
-        if let Some(delay) = self.sound_queue.next_delay() {
+        if let Timeout::Milliseconds(delay) = self.sound_queue.next_delay() {
             if self.context.audio_context.state()
                 == web_sys::AudioContextState::Suspended
             {

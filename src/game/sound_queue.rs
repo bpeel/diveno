@@ -16,7 +16,8 @@
 
 use std::collections::binary_heap::BinaryHeap;
 use std::cmp::{Ord, Ordering};
-use super::{timer, logic, timing};
+use super::{timer, logic, timing, timeout};
+use timeout::Timeout;
 
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy)]
 pub enum Sound {
@@ -90,10 +91,13 @@ impl SoundQueue {
         }
     }
 
-    pub fn next_delay(&self) -> Option<i64> {
-        self.heap.peek().map(|qs| {
-            (qs.play_time - self.start_time.elapsed()).max(0)
-        })
+    pub fn next_delay(&self) -> Timeout {
+        match self.heap.peek() {
+            Some(qs) => Timeout::Milliseconds(
+                (qs.play_time - self.start_time.elapsed()).max(0)
+            ),
+            None => Timeout::Forever,
+        }
     }
 
     pub fn handle_logic_event(
