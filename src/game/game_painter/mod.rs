@@ -18,6 +18,7 @@ mod letter_painter;
 mod score_painter;
 mod tombola_painter;
 mod bingo_painter;
+mod super_painter;
 mod letter_vertex;
 mod digit_tool;
 
@@ -25,6 +26,7 @@ use std::rc::Rc;
 use super::paint_data::PaintData;
 use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
+use super_painter::SuperPainter;
 use tombola_painter::TombolaPainter;
 use bingo_painter::BingoPainter;
 use super::{logic, timer, timeout};
@@ -70,6 +72,7 @@ pub struct GamePainter {
     paint_data: Rc<PaintData>,
     all_score_painter: ScorePainter,
     letter_painter: LetterPainter,
+    super_painter: SuperPainter,
     team_painters: [TeamPainters; logic::N_TEAMS],
     width: u32,
     height: u32,
@@ -92,6 +95,7 @@ impl GamePainter {
                 score_painter::TeamChoice::AllTeams,
             )?,
             letter_painter: LetterPainter::new(Rc::clone(&paint_data))?,
+            super_painter: SuperPainter::new(Rc::clone(&paint_data))?,
             team_painters: [
                 TeamPainters {
                     tombola: TombolaPainter::new(
@@ -140,6 +144,7 @@ impl GamePainter {
             Page::Word => {
                 self.all_score_painter.paint(logic)
                     .min(self.letter_painter.paint(logic))
+                    .min(self.super_painter.paint(logic))
             },
         }
     }
@@ -207,6 +212,7 @@ impl GamePainter {
 
         self.all_score_painter.update_fb_size(width, height);
         self.letter_painter.update_fb_size(width, height);
+        self.super_painter.update_fb_size(width, height);
 
         for painters in self.team_painters.iter_mut() {
             painters.tombola.update_fb_size(width, height);
@@ -240,6 +246,12 @@ impl GamePainter {
         }
 
         if self.letter_painter.handle_logic_event(logic, event)
+            && animation_position.page_visible(Page::Word)
+        {
+            redraw_needed = true;
+        }
+
+        if self.super_painter.handle_logic_event(logic, event)
             && animation_position.page_visible(Page::Word)
         {
             redraw_needed = true;
