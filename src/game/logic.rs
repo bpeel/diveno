@@ -16,12 +16,15 @@
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use super::{letter_texture, random, tombola, bingo_grid};
+use super::{letter_texture, random, tombola, bingo_grid, timer};
 use super::dictionary::Dictionary;
 use tombola::Tombola;
 use bingo_grid::BingoGrid;
 
 pub const N_GUESSES: usize = 6;
+
+// Maximum time allowed in milliseconds for the super diveno
+pub const SUPER_DIVENO_TIME: i64 = 5 * 60 * 1000;
 
 const N_NUMBER_BALLS: usize = bingo_grid::N_SPACES
     - bingo_grid::N_INITIAL_SPACES_COVERED;
@@ -110,6 +113,21 @@ pub struct Ball {
     pub rotation: f32,
 }
 
+pub struct SuperDiveno {
+    start_time: timer::Timer,
+    guessed_words: u32,
+}
+
+impl SuperDiveno {
+    pub fn remaining_time(&self) -> i64 {
+        (SUPER_DIVENO_TIME - self.start_time.elapsed()).max(0)
+    }
+
+    pub fn guessed_words(&self) -> u32 {
+        self.guessed_words
+    }
+}
+
 pub const N_TEAMS: usize = 2;
 
 const MAX_SCORE: u32 = 990;
@@ -139,6 +157,7 @@ pub struct Logic {
     guesses: [Vec<Letter>; N_GUESSES],
     n_guesses: usize,
     scores: [u32; N_TEAMS],
+    super_diveno: Option<SuperDiveno>,
     tombolas: [Tombola; N_TEAMS],
     bingo_grids: [BingoGrid; N_TEAMS],
     current_team: Team,
@@ -164,6 +183,7 @@ impl Logic {
             guesses: Default::default(),
             n_guesses: 0,
             scores: Default::default(),
+            super_diveno: None,
             tombolas: [Tombola::new(N_BALLS), Tombola::new(N_BALLS)],
             bingo_grids: Default::default(),
             current_team: Team::Left,
@@ -278,8 +298,10 @@ impl Logic {
                 }
             },
             Key::Space =>  {
-                self.dead_key_queued = false;
-                self.change_current_team();
+                if self.super_diveno.is_none() {
+                    self.dead_key_queued = false;
+                    self.change_current_team();
+                }
             },
             Key::Home => {
                 self.dead_key_queued = false;
@@ -296,8 +318,16 @@ impl Logic {
                 self.dead_key_queued = false;
                 self.change_page_right();
             },
-            Key::Up => self.add_to_score(10),
-            Key::Down => self.add_to_score(-10),
+            Key::Up => {
+                if self.super_diveno.is_none() {
+                    self.add_to_score(10);
+                }
+            },
+            Key::Down => {
+                if self.super_diveno.is_none() {
+                    self.add_to_score(-10);
+                }
+            },
         }
     }
 
@@ -514,8 +544,19 @@ impl Logic {
         self.queue_event_once(Event::GuessEntered);
 
         if self.is_solved {
-            self.scores[self.current_team as usize] += 50;
-            self.queue_event_once(Event::ScoreChanged(self.current_team));
+            match self.super_diveno.as_mut() {
+                None => {
+                    self.scores[self.current_team as usize] += 50;
+                    self.queue_event_once(
+                        Event::ScoreChanged(self.current_team)
+                    );
+                },
+                Some(sd) => {
+                    if sd.remaining_time() > 0 {
+                        sd.guessed_words += 1;
+                    }
+                },
+            }
             self.queue_event_once(Event::Solved);
         }
     }
@@ -656,6 +697,10 @@ impl Logic {
 
     pub fn bingo_grid(&self, team: Team) -> &BingoGrid {
         &self.bingo_grids[team as usize]
+    }
+
+    pub fn super_diveno(&self) -> Option<&SuperDiveno> {
+        self.super_diveno.as_ref()
     }
 }
 
