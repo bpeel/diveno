@@ -19,6 +19,7 @@ mod score_painter;
 mod tombola_painter;
 mod bingo_painter;
 mod letter_vertex;
+mod digit_tool;
 
 use std::rc::Rc;
 use super::paint_data::PaintData;

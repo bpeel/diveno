@@ -17,83 +17,32 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic, timer, timing, timeout};
+use super::super::{logic, timer, timing, timeout};
 use super::super::array_object::ArrayObject;
+use super::digit_tool;
+use digit_tool::Vertex;
 use timeout::Timeout;
 use glow::HasContext;
 
-// Number of digits to show for the score
-const N_DIGITS: usize = 3;
-// Number of quads needed to draw the frame
-const N_FRAME_QUADS: usize = 8;
-// Number of quads needed to draw the inner gap
-const N_INNER_GAP_QUADS: usize = 4;
 // Number of quads needed to draw the bar to show the current team
 const N_BAR_QUADS: usize = 1;
 // Total number of quads to draw the two score boards
-const TOTAL_N_QUADS: usize =
-    (N_DIGITS + N_FRAME_QUADS + N_INNER_GAP_QUADS) * 2
-    + N_BAR_QUADS;
-
-// The total width allocated to the score
-const SCORE_WIDTH: f32 = 2.0 / 4.0;
-// The empty gap surrounding the frame
-const OUTER_GAP_SIZE: f32 = SCORE_WIDTH / 16.0;
-// The width of the frame
-const FRAME_WIDTH: f32 = SCORE_WIDTH / 8.0;
-// The empty gap inside the frame
-const INNER_GAP_SIZE: f32 = SCORE_WIDTH / 16.0;
-
-const TEX_WIDTH: u32 = 1024;
-const TEX_HEIGHT: u32 = 128;
-
-// Width of the frame in pixels in the image
-const FRAME_PIXEL_WIDTH: u32 = 40;
-// Width of the frame in texture coordinates
-const FRAME_TEX_WIDTH: u16 = (FRAME_PIXEL_WIDTH * 65535 / TEX_WIDTH) as u16;
-// Height of the frame in texture coordinates
-const FRAME_TEX_HEIGHT: u16 = (FRAME_PIXEL_WIDTH * 65535 / TEX_HEIGHT) as u16;
-// Texture coordinate of the left side of the frame
-const FRAME_TEX_LEFT: u16 = ((TEX_WIDTH - 100) * 65535 / TEX_WIDTH) as u16;
-// Total width of all the digits in texture coordinates
-const DIGITS_TEX_WIDTH: u16 = 56867;
-
-const DIGIT_WIDTH: f32 = (SCORE_WIDTH
-                          - (OUTER_GAP_SIZE + FRAME_WIDTH + INNER_GAP_SIZE)
-                          * 2.0)
-    / N_DIGITS as f32;
-const DIGIT_HEIGHT: f32 = DIGIT_WIDTH
-    * TEX_HEIGHT as f32
-    / (DIGITS_TEX_WIDTH as f32
-       / u16::MAX as f32
-       / 10.0
-       * TEX_WIDTH as f32);
-
-// Tex coords of a known black texel
-const GAP_TEX_S: u16 = ((65535 + FRAME_TEX_LEFT as u32) / 2) as u16;
-const GAP_TEX_T: u16 = u16::MAX / 2;
+const TOTAL_N_QUADS: usize = digit_tool::TOTAL_N_QUADS * 2 + N_BAR_QUADS;
 
 // Milliseconds per unit change when animating the score
 const SCORE_CHANGE_TIME: i64 = 30;
 
 // Texture coordinates of the bar to show the current team
-const BAR_TEX_S1: u16 = (902 * 65535 / TEX_WIDTH) as u16;
-const BAR_TEX_S2: u16 = BAR_TEX_S1 + (17 * 65535 / TEX_WIDTH) as u16;
+const BAR_TEX_S1: u16 = (902 * 65535 / digit_tool::TEX_WIDTH) as u16;
+const BAR_TEX_S2: u16 = BAR_TEX_S1
+    + (17 * 65535 / digit_tool::TEX_WIDTH) as u16;
 // Height of the bar
-const BAR_HEIGHT: f32 = SCORE_WIDTH / 10.0;
+const BAR_HEIGHT: f32 = digit_tool::DISPLAY_WIDTH / 10.0;
 
 /// Used in the constructor to pick which team’s score to display.
 pub enum TeamChoice {
     OneTeam(logic::Team),
     AllTeams,
-}
-
-#[repr(C)]
-struct Vertex {
-    x: f32,
-    y: f32,
-    s: u16,
-    t: u16,
 }
 
 struct AnimatedScore {
@@ -350,243 +299,36 @@ impl ScorePainter {
         self.vertices.push(Vertex { x: x2, y: y2, s: s1, t: t2, });
     }
 
-    fn add_quad(
-        &mut self,
-        x1: f32,
-        y1: f32,
-        x2: f32,
-        y2: f32,
-        s1: u16,
-        t1: u16,
-        s2: u16,
-        t2: u16,
-    ) {
-        self.vertices.push(Vertex { x: x1, y: y1, s: s1, t: t1, });
-        self.vertices.push(Vertex { x: x1, y: y2, s: s1, t: t2, });
-        self.vertices.push(Vertex { x: x2, y: y1, s: s2, t: t1, });
-        self.vertices.push(Vertex { x: x2, y: y2, s: s2, t: t2, });
-    }
-
-    fn add_frame(&mut self, x: f32) {
-        let y_scale = self.width as f32 / self.height as f32;
-
-        let left = x + OUTER_GAP_SIZE;
-        let right = x + SCORE_WIDTH - OUTER_GAP_SIZE;
-        let top = (DIGIT_HEIGHT / 2.0 + INNER_GAP_SIZE + FRAME_WIDTH) * y_scale;
-        let bottom = -top;
-
-        // Left side
-        self.add_quad(
-            left,
-            top - FRAME_WIDTH * y_scale,
-            left + FRAME_WIDTH,
-            bottom + FRAME_WIDTH * y_scale,
-            FRAME_TEX_LEFT,
-            u16::MAX / 2,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH,
-            u16::MAX / 2,
-        );
-        // Right side
-        self.add_quad(
-            right - FRAME_WIDTH,
-            top - FRAME_WIDTH * y_scale,
-            right,
-            bottom + FRAME_WIDTH * y_scale,
-            u16::MAX - FRAME_TEX_WIDTH,
-            u16::MAX / 2,
-            u16::MAX,
-            u16::MAX / 2,
-        );
-        // Top side
-        self.add_quad(
-            left + FRAME_WIDTH,
-            top,
-            right - FRAME_WIDTH,
-            top - FRAME_WIDTH * y_scale,
-            GAP_TEX_S,
-            0,
-            GAP_TEX_S,
-            FRAME_TEX_HEIGHT,
-        );
-        // Bottom side
-        self.add_quad(
-            left + FRAME_WIDTH,
-            bottom + FRAME_WIDTH * y_scale,
-            right - FRAME_WIDTH,
-            bottom,
-            GAP_TEX_S,
-            u16::MAX - FRAME_TEX_HEIGHT,
-            GAP_TEX_S,
-            u16::MAX,
-        );
-
-        // Top-left corner
-        self.add_quad(
-            left,
-            top,
-            left + FRAME_WIDTH,
-            top - FRAME_WIDTH * y_scale,
-            FRAME_TEX_LEFT,
-            0,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH,
-            FRAME_TEX_HEIGHT,
-        );
-        // Top-right corner
-        self.add_quad(
-            right - FRAME_WIDTH,
-            top,
-            right,
-            top - FRAME_WIDTH * y_scale,
-            u16::MAX - FRAME_TEX_WIDTH,
-            0,
-            u16::MAX,
-            FRAME_TEX_HEIGHT,
-        );
-        // Bottom-left corner
-        self.add_quad(
-            left,
-            bottom + FRAME_WIDTH * y_scale,
-            left + FRAME_WIDTH,
-            bottom,
-            FRAME_TEX_LEFT,
-            u16::MAX - FRAME_TEX_HEIGHT,
-            FRAME_TEX_LEFT + FRAME_TEX_WIDTH,
-            u16::MAX,
-        );
-        // Bottom-right corner
-        self.add_quad(
-            right - FRAME_WIDTH,
-            bottom + FRAME_WIDTH * y_scale,
-            right,
-            bottom,
-            u16::MAX - FRAME_TEX_WIDTH,
-            u16::MAX - FRAME_TEX_HEIGHT,
-            u16::MAX,
-            u16::MAX,
-        );
-    }
-
-    fn add_gap_quad(&mut self, x1: f32, y1: f32, x2: f32, y2: f32) {
-        self.add_quad(
-            x1,
-            y1,
-            x2,
-            y2,
-            GAP_TEX_S,
-            GAP_TEX_T,
-            GAP_TEX_S,
-            GAP_TEX_T,
-        );
-    }
-
-    fn add_inner_gap(&mut self, x: f32) {
-        let y_scale = self.width as f32 / self.height as f32;
-
-        let left = x + OUTER_GAP_SIZE + FRAME_WIDTH;
-        let right = x + SCORE_WIDTH - OUTER_GAP_SIZE - FRAME_WIDTH;
-        let top = (DIGIT_HEIGHT / 2.0 + INNER_GAP_SIZE) * y_scale;
-        let bottom = -top;
-
-        // Left side
-        self.add_gap_quad(
-            left,
-            top,
-            left + INNER_GAP_SIZE,
-            bottom,
-        );
-        // Right side
-        self.add_gap_quad(
-            right - INNER_GAP_SIZE,
-            top,
-            right,
-            bottom,
-        );
-        // Top side
-        self.add_gap_quad(
-            left + INNER_GAP_SIZE,
-            top,
-            right - INNER_GAP_SIZE,
-            top - INNER_GAP_SIZE * y_scale,
-        );
-        // Bottom side
-        self.add_gap_quad(
-            left + INNER_GAP_SIZE,
-            bottom + INNER_GAP_SIZE * y_scale,
-            right - INNER_GAP_SIZE,
-            bottom,
-        );
-    }
-
-    fn add_digits(&mut self, x: f32, mut score: u32) {
-        let y_scale = self.width as f32 / self.height as f32;
-
-        let right = x
-            + SCORE_WIDTH
-            - OUTER_GAP_SIZE
-            - FRAME_WIDTH
-            - INNER_GAP_SIZE;
-        let top = DIGIT_HEIGHT / 2.0 * y_scale;
-        let bottom = -top;
-
-        for digit_num in 0..N_DIGITS {
-            let (s1, t1, s2, t2) = if score <= 0 && digit_num > 0{
-                (GAP_TEX_S, GAP_TEX_T, GAP_TEX_S, GAP_TEX_T)
-            } else {
-                let digit = score % 10;
-
-                (
-                    (DIGITS_TEX_WIDTH as u32 * digit / 10) as u16,
-                    0,
-                    (DIGITS_TEX_WIDTH as u32 * (digit + 1) / 10) as u16,
-                    u16::MAX,
-                )
-            };
-
-            self.add_quad(
-                right - DIGIT_WIDTH * (digit_num + 1) as f32,
-                top,
-                right - DIGIT_WIDTH * digit_num as f32,
-                bottom,
-                s1,
-                t1,
-                s2,
-                t2,
-            );
-
-            score /= 10;
-        }
-    }
-
-    fn add_scoreboard(&mut self, x: f32, score: u32) {
-        self.add_frame(x);
-        self.add_inner_gap(x);
-        self.add_digits(x, score);
-    }
-
     fn add_current_team(&mut self, logic: &logic::Logic) {
         let x = match logic.current_team() {
             logic::Team::Left => -1.0,
-            logic::Team::Right => 1.0 - SCORE_WIDTH,
+            logic::Team::Right => 1.0 - digit_tool::DISPLAY_WIDTH,
         };
 
         let y_scale = self.width as f32 / self.height as f32;
 
-        let y = (-DIGIT_HEIGHT / 2.0
-                 - INNER_GAP_SIZE
-                 - FRAME_WIDTH
-                 - OUTER_GAP_SIZE)
-            * y_scale;
+        let y = -digit_tool::TOTAL_HEIGHT / 2.0 * y_scale;
 
         self.add_quad_rotated_tex(
-            x + OUTER_GAP_SIZE,
+            x + digit_tool::OUTER_GAP_SIZE,
             y,
-            x + SCORE_WIDTH - OUTER_GAP_SIZE,
+            x + digit_tool::DISPLAY_WIDTH - digit_tool::OUTER_GAP_SIZE,
             y - BAR_HEIGHT * y_scale,
             BAR_TEX_S1,
             0,
             BAR_TEX_S2,
             65535,
         );
+    }
+
+    fn add_scoreboard(&mut self, x: f32, score: u32) {
+        let mut digit_tool = digit_tool::DigitTool::new(
+            &mut self.vertices,
+            self.width,
+            self.height,
+        );
+
+        digit_tool.add_display(x, score);
     }
 
     fn fill_vertices_array(&mut self, logic: &logic::Logic) {
@@ -605,7 +347,10 @@ impl ScorePainter {
                 logic,
                 logic::Team::Right
             );
-            self.add_scoreboard(1.0 - SCORE_WIDTH, right_score);
+            self.add_scoreboard(
+                1.0 - digit_tool::DISPLAY_WIDTH,
+                right_score,
+            );
         }
 
         if self.team_is_visible(logic.current_team()) {
@@ -641,29 +386,7 @@ fn create_array_object(
     paint_data: &Rc<PaintData>,
     buffer: Rc<Buffer>,
 ) -> Result<ArrayObject, String> {
-    let mut array_object = ArrayObject::new(Rc::clone(paint_data))?;
-    let mut offset = 0;
-
-    array_object.set_attribute(
-        shaders::POSITION_ATTRIB,
-        2, // size
-        glow::FLOAT,
-        false, // normalized
-        std::mem::size_of::<Vertex>() as i32,
-        Rc::clone(&buffer),
-        offset,
-    );
-    offset += std::mem::size_of::<f32>() as i32 * 2;
-
-    array_object.set_attribute(
-        shaders::TEX_COORD_ATTRIB,
-        2, // size
-        glow::UNSIGNED_SHORT,
-        true, // normalized
-        std::mem::size_of::<Vertex>() as i32,
-        Rc::clone(&buffer),
-        offset,
-    );
+    let mut array_object = digit_tool::create_array_object(paint_data, buffer)?;
 
     paint_data.quad_tool.set_element_buffer(
         &mut array_object,
