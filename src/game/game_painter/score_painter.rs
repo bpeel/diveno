@@ -17,8 +17,9 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic, timer, timing};
+use super::super::{shaders, logic, timer, timing, timeout};
 use super::super::array_object::ArrayObject;
+use timeout::Timeout;
 use glow::HasContext;
 
 // Number of digits to show for the score
@@ -149,7 +150,7 @@ impl ScorePainter {
         }
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+    pub fn paint(&mut self, logic: &logic::Logic) -> Timeout {
         if self.vertices_dirty {
             self.update_vertices(logic);
             self.vertices_dirty = false;
@@ -183,9 +184,9 @@ impl ScorePainter {
         // Redraw again if any of the scores are animated
         if self.animated_scores.iter().any(|s| s.is_some()) {
             self.vertices_dirty = true;
-            true
+            timeout::IMMEDIATELY
         } else {
-            false
+            Timeout::Forever
         }
     }
 

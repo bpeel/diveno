@@ -18,7 +18,7 @@ mod game;
 mod sdl_images;
 
 use game::{logic, shaders, images, game_painter, paint_data, sound_queue};
-use game::timeout;
+use game::{timer, timeout};
 
 use sdl2;
 use sdl2::event::{Event, WindowEvent};
@@ -111,10 +111,11 @@ fn check_extension(context: &Context, name: &str) -> bool {
 struct GameData<'a> {
     context: &'a mut Context,
     logic: logic::Logic,
+    start_time: timer::Timer,
     sound_files: Vec<Chunk>,
     sound_queue: sound_queue::SoundQueue,
     game_painter: game_painter::GamePainter,
-    redraw_queued: bool,
+    redraw_time: Option<i64>,
     should_quit: bool,
     is_fullscreen: bool,
 }
@@ -141,10 +142,11 @@ impl<'a> GameData<'a> {
         Ok(GameData {
             context,
             logic,
+            start_time: timer::Timer::new(),
             sound_files,
             sound_queue: sound_queue::SoundQueue::new(),
             game_painter,
-            redraw_queued: true,
+            redraw_time: Some(0),
             should_quit: false,
             is_fullscreen: false,
         })
@@ -187,6 +189,10 @@ fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
     }
 }
 
+fn queue_redraw(game_data: &mut GameData) {
+    game_data.redraw_time = Some(0);
+}
+
 fn handle_event(game_data: &mut GameData, event: Event) {
     match event {
         Event::Quit {..} => game_data.should_quit = true,
@@ -196,18 +202,18 @@ fn handle_event(game_data: &mut GameData, event: Event) {
         Event::Window { win_event, .. } => {
             match win_event {
                 WindowEvent::Close => game_data.should_quit = true,
-                WindowEvent::Exposed => game_data.redraw_queued = true,
+                WindowEvent::Exposed => queue_redraw(game_data),
                 WindowEvent::Shown => {
                     let (width, height) = game_data.context.window.size();
                     game_data.game_painter.update_fb_size(width, height);
-                    game_data.redraw_queued = true;
+                    queue_redraw(game_data);
                 },
                 WindowEvent::SizeChanged(width, height) => {
                     game_data.game_painter.update_fb_size(
                         width as u32,
                         height as u32
                     );
-                    game_data.redraw_queued = true;
+                    queue_redraw(game_data);
                 },
                 _ => {},
             }
@@ -225,7 +231,7 @@ fn flush_sounds(game_data: &mut GameData) {
 fn flush_logic_events(game_data: &mut GameData) {
     while let Some(event) = game_data.logic.get_event() {
         if game_data.game_painter.handle_logic_event(&game_data.logic, &event) {
-            game_data.redraw_queued = true;
+            queue_redraw(game_data);
         }
 
         game_data.sound_queue.handle_logic_event(&game_data.logic, &event);
@@ -233,38 +239,62 @@ fn flush_logic_events(game_data: &mut GameData) {
 }
 
 fn redraw(game_data: &mut GameData) {
-    if !game_data.game_painter.paint(&mut game_data.logic) {
-        game_data.redraw_queued = false;
+    match game_data.game_painter.paint(&mut game_data.logic) {
+        Timeout::Milliseconds(ms) => {
+            let time = game_data.start_time.elapsed() + ms;
+            game_data.redraw_time = Some(time);
+        },
+        Timeout::Forever => game_data.redraw_time = None,
     }
 
     game_data.context.window.gl_swap_window();
 }
 
+fn redraw_delay(game_data: &GameData) -> Timeout {
+    match game_data.redraw_time {
+        Some(time) => {
+            let delay = (time - game_data.start_time.elapsed()).max(0);
+            Timeout::Milliseconds(delay)
+        },
+        None => Timeout::Forever,
+    }
+}
+
 fn main_loop(game_data: &mut GameData) {
     while !game_data.should_quit {
-        if game_data.redraw_queued {
-            while let Some(event) = game_data.context.event_pump.poll_event() {
+        let redraw_delay = redraw_delay(game_data);
+        let sound_delay = game_data.sound_queue.next_delay();
+
+        match redraw_delay.min(sound_delay) {
+            Timeout::Forever => {
+                let event = game_data.context.event_pump.wait_event();
                 handle_event(game_data, event);
-            }
-
-            flush_logic_events(game_data);
-
-            redraw(game_data);
-        } else {
-            let event = match game_data.sound_queue.next_delay() {
-                Timeout::Milliseconds(timeout) => {
-                    game_data.context.event_pump.wait_event_timeout(
-                        timeout as u32
-                    )
-                },
-                Timeout::Forever => {
-                    Some(game_data.context.event_pump.wait_event())
+            },
+            Timeout::Milliseconds(ms) if ms <= 0 => {
+                while let Some(event) = game_data
+                    .context
+                    .event_pump
+                    .poll_event()
+                {
+                    handle_event(game_data, event);
                 }
-            };
+            },
+            Timeout::Milliseconds(ms) => {
+                if let Some(event) = game_data
+                    .context
+                    .event_pump
+                    .wait_event_timeout(ms as u32)
+                {
+                    handle_event(game_data, event);
+                }
+            },
+        }
 
-            if let Some(event) = event {
-                handle_event(game_data, event);
-                flush_logic_events(game_data);
+        flush_logic_events(game_data);
+
+        if let Timeout::Milliseconds(ms) = redraw_delay {
+            if ms <= 0 {
+                redraw(game_data);
             }
         }
 

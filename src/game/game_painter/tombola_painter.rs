@@ -17,9 +17,10 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{shaders, logic, tombola};
+use super::super::{shaders, logic, tombola, timeout};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
+use timeout::Timeout;
 use std::f32::consts::PI;
 
 // Number of balls in a row of the ball texture
@@ -148,7 +149,7 @@ impl TombolaPainter {
         })
     }
 
-    pub fn paint(&mut self, logic: &mut logic::Logic) -> bool {
+    pub fn paint(&mut self, logic: &mut logic::Logic) -> Timeout {
         logic.step_tombola(self.team);
 
         if self.transform_dirty {
@@ -249,10 +250,10 @@ impl TombolaPainter {
         }
 
         if logic.tombola_is_sleeping(self.team) {
-            false
+            Timeout::Forever
         } else {
             self.vertices_dirty = true;
-            true
+            timeout::IMMEDIATELY
         }
     }
 

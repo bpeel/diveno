@@ -17,12 +17,13 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{logic, bingo_grid, timer};
+use super::super::{logic, bingo_grid, timer, timeout};
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
 use nalgebra::{Matrix4, Vector3};
 use super::letter_vertex;
 use letter_vertex::Vertex;
+use timeout::Timeout;
 
 const TEX_SPACES_X: u32 = 8;
 const TEX_SPACES_Y: u32 = 4;
@@ -157,7 +158,7 @@ impl BingoPainter {
         }
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+    pub fn paint(&mut self, logic: &logic::Logic) -> Timeout {
         let animation_times = self.update_animation_times();
 
         if self.transform_dirty {
@@ -198,9 +199,9 @@ impl BingoPainter {
 
         if animation_times.is_animating() {
             self.vertices_dirty = true;
-            true
+            timeout::IMMEDIATELY
         } else {
-            false
+            Timeout::Forever
         }
     }
 

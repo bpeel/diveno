@@ -26,7 +26,8 @@ use game::paint_data::PaintData;
 use game::game_painter::GamePainter;
 use game::sound_queue::SoundQueue;
 use game::timer::Timer;
-use game::timeout::Timeout;
+use game::timeout;
+use timeout::Timeout;
 
 fn show_error(message: &str) {
     console::log_1(&message.into());
@@ -437,6 +438,14 @@ struct Sound {
     _track: web_sys::MediaElementAudioSourceNode,
 }
 
+enum QueuedRedraw {
+    Timeout {
+        timestamp: i64,
+        handle: i32,
+    },
+    Immediate(i32),
+}
+
 struct Diveno {
     context: Context,
     painter: GamePainter,
@@ -446,8 +455,9 @@ struct Diveno {
 
     start_time: Timer,
 
-    animation_frame_handle: Option<i32>,
+    queued_redraw: Option<QueuedRedraw>,
     redraw_closure: Option<Closure<dyn Fn()>>,
+    redraw_timeout_closure: Option<Closure<dyn Fn()>>,
 
     resize_closure: Option<Closure<dyn Fn()>>,
 
@@ -471,8 +481,9 @@ impl Diveno {
             sound_queue: SoundQueue::new(),
             logic,
             start_time: Timer::new(),
-            animation_frame_handle: None,
+            queued_redraw: None,
             redraw_closure: None,
+            redraw_timeout_closure: None,
             resize_closure: None,
             keydown_closure: None,
             queued_sound_callback: None,
@@ -595,39 +606,86 @@ impl Diveno {
         redraw_queued
     }
 
-    fn redraw(&mut self) -> bool {
-        let mut redraw_queued = self.flush_logic_events();
+    fn redraw(&mut self) -> Timeout {
+        let redraw_timeout = if self.flush_logic_events() {
+            timeout::IMMEDIATELY
+        } else {
+            Timeout::Forever
+        };
 
-        redraw_queued |= self.painter.paint(&mut self.logic);
-
-        redraw_queued
+        self.painter.paint(&mut self.logic).min(redraw_timeout)
     }
 
-    fn queue_redraw(&mut self) {
-        if self.animation_frame_handle.is_some() {
-            return;
+    fn queue_redraw(&mut self, delay: i64) {
+        match self.queued_redraw {
+            None => (),
+            Some(QueuedRedraw::Immediate(_)) => return,
+            Some(QueuedRedraw::Timeout { timestamp, handle }) => {
+                let new_timestamp = self.start_time.elapsed() + delay;
+
+                if new_timestamp < timestamp {
+                    self.context.window.clear_timeout_with_handle(handle);
+                    self.queued_redraw = None;
+                } else {
+                    return;
+                }
+            },
         }
 
         let diveno_pointer = self as *mut Diveno;
 
-        let redraw_closure = self.redraw_closure.get_or_insert_with(|| {
-            Closure::<dyn Fn()>::new(move || {
-                let diveno = unsafe { &mut *diveno_pointer };
-                diveno.animation_frame_handle = None;
+        if delay <= 0 {
+            let redraw_closure =
+                self.redraw_closure.get_or_insert_with(|| {
+                    Closure::<dyn Fn()>::new(move || {
+                        let diveno = unsafe { &mut *diveno_pointer };
+                        diveno.queued_redraw = None;
 
-                if diveno.redraw() {
-                    diveno.queue_redraw();
-                }
-            })
-        });
+                        if let Timeout::Milliseconds(ms) = diveno.redraw() {
+                            diveno.queue_redraw(ms);
+                        }
+                    })
+                });
 
-        match self.context.window.request_animation_frame(
-            redraw_closure.as_ref().unchecked_ref()
-        ) {
-            Ok(handle) => self.animation_frame_handle = Some(handle),
-            Err(_) => {
-                console::log_1(&"Error requesting animation frame".into());
-            },
+            match self.context.window.request_animation_frame(
+                redraw_closure.as_ref().unchecked_ref()
+            ) {
+                Ok(handle) => {
+                    self.queued_redraw = Some(QueuedRedraw::Immediate(handle));
+                },
+                Err(_) => {
+                    console::log_1(&"Error requesting animation frame".into());
+                },
+            }
+        } else {
+            let redraw_timeout_closure =
+                self.redraw_timeout_closure.get_or_insert_with(|| {
+                    Closure::<dyn Fn()>::new(move || {
+                        let diveno = unsafe { &mut *diveno_pointer };
+                        diveno.queued_redraw = None;
+                        diveno.queue_redraw(0);
+                    })
+                });
+
+            match self
+                .context
+                .window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    redraw_timeout_closure.as_ref().unchecked_ref(),
+                    delay as i32,
+                )
+            {
+                Ok(handle) => {
+                    let timestamp = self.start_time.elapsed() + delay;
+                    self.queued_redraw = Some(QueuedRedraw::Timeout {
+                        timestamp,
+                        handle,
+                    });
+                },
+                Err(_) => {
+                    console::log_1(&"Error setting timeout".into());
+                },
+            }
         }
     }
 
@@ -642,7 +700,7 @@ impl Diveno {
 
         self.painter.update_fb_size(width, height);
 
-        self.queue_redraw();
+        self.queue_redraw(0);
     }
 
     fn handle_key_event(&mut self, event: web_sys::KeyboardEvent) {
@@ -679,7 +737,7 @@ impl Diveno {
         self.logic.press_key(key);
 
         if self.flush_logic_events() {
-            self.queue_redraw();
+            self.queue_redraw(0);
         }
     }
 }

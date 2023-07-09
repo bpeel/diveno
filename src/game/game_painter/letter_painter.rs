@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{logic, timer, letter_texture};
+use super::super::{logic, timer, letter_texture, timeout};
 use letter_texture::LETTERS;
 use super::super::array_object::ArrayObject;
 use glow::HasContext;
@@ -25,6 +25,7 @@ use nalgebra::{Vector3, Perspective3, Matrix4};
 use std::f32::consts::PI;
 use super::letter_vertex;
 use letter_vertex::Vertex;
+use timeout::Timeout;
 
 // Number of milliseconds per letter for the animation
 use super::super::timing::MILLIS_PER_LETTER;
@@ -189,7 +190,7 @@ impl LetterPainter {
         }
     }
 
-    pub fn paint(&mut self, logic: &logic::Logic) -> bool {
+    pub fn paint(&mut self, logic: &logic::Logic) -> Timeout {
         let animation_times = self.update_animation_times(logic);
 
         if self.transform_dirty {
@@ -235,9 +236,9 @@ impl LetterPainter {
 
         if animation_times.is_animating() {
             self.vertices_dirty = true;
-            true
+            timeout::IMMEDIATELY
         } else {
-            false
+            Timeout::Forever
         }
     }
 

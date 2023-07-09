@@ -26,8 +26,9 @@ use letter_painter::LetterPainter;
 use score_painter::ScorePainter;
 use tombola_painter::TombolaPainter;
 use bingo_painter::BingoPainter;
-use super::{logic, timer};
+use super::{logic, timer, timeout};
 use logic::{Team, Page, Logic};
+use timeout::Timeout;
 use glow::HasContext;
 
 // Number of millisecends to turn a page
@@ -127,22 +128,22 @@ impl GamePainter {
         })
     }
 
-    fn paint_page(&mut self, logic: &mut Logic, page: Page) -> bool {
+    fn paint_page(&mut self, logic: &mut Logic, page: Page) -> Timeout {
         match page {
             Page::Bingo(team) => {
                 let painters = &mut self.team_painters[team as usize];
                 painters.tombola.paint(logic)
-                    | painters.score.paint(logic)
-                    | painters.bingo.paint(logic)
+                    .min(painters.score.paint(logic))
+                    .min(painters.bingo.paint(logic))
             },
             Page::Word => {
                 self.all_score_painter.paint(logic)
-                    | self.letter_painter.paint(logic)
+                    .min(self.letter_painter.paint(logic))
             },
         }
     }
 
-    pub fn paint(&mut self, logic: &mut Logic) -> bool {
+    pub fn paint(&mut self, logic: &mut Logic) -> Timeout {
         unsafe {
             let gl = &self.paint_data.gl;
             gl.clear_color(0.0, 0.0, 1.0, 1.0);
@@ -193,7 +194,7 @@ impl GamePainter {
                 self.paint_page(logic, right);
 
                 // Redraw always needed while we are animating
-                true
+                timeout::IMMEDIATELY
             },
         }
     }
