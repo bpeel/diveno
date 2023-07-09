@@ -14,20 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod shaders;
-pub mod images;
-pub mod paint_data;
-pub mod game_painter;
-pub mod logic;
-pub mod buffer;
-pub mod letter_texture;
-pub mod array_object;
-pub mod quad_tool;
-pub mod timer;
-pub mod dictionary;
-pub mod random;
-pub mod timing;
-pub mod sound_queue;
-pub mod tombola;
-pub mod bingo_grid;
-pub mod timeout;
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone, Copy)]
+pub enum Timeout {
+    Milliseconds(i64),
+    Forever,
+}
+
+pub const IMMEDIATELY: Timeout = Timeout::Milliseconds(0);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn order() {
+        assert!(Timeout::Forever > Timeout::Milliseconds(12));
+        assert!(Timeout::Milliseconds(11) > Timeout::Milliseconds(10));
+
+        assert_eq!(
+            Timeout::Forever.min(Timeout::Milliseconds(12)),
+            Timeout::Milliseconds(12),
+        );
+    }
+}
