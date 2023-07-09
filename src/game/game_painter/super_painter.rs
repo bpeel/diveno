@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use super::super::paint_data::PaintData;
 use super::super::buffer::Buffer;
-use super::super::{logic, timeout};
+use super::super::{logic, timeout, timer, timing};
 use super::super::array_object::ArrayObject;
 use super::digit_tool;
 use timeout::Timeout;
@@ -34,6 +34,7 @@ pub struct SuperPainter {
     height: u32,
     last_remaining_seconds: u32,
     vertices_dirty: bool,
+    score_delay: Option<timer::Timer>,
     // Temporary buffer used for building the vertex buffer
     vertices: Vec<digit_tool::Vertex>,
 }
@@ -52,6 +53,7 @@ impl SuperPainter {
             paint_data,
             width: 1,
             height: 1,
+            score_delay: None,
             last_remaining_seconds: u32::MAX,
             vertices_dirty: true,
             vertices: Vec::with_capacity(TOTAL_N_QUADS * 4),
@@ -64,7 +66,7 @@ impl SuperPainter {
             return Timeout::Forever;
         };
 
-        self.update_vertices(&super_diveno);
+        self.update_vertices(logic, &super_diveno);
 
         self.array_object.bind();
 
@@ -91,7 +93,13 @@ impl SuperPainter {
             gl.disable(glow::BLEND);
         }
 
-        Timeout::Milliseconds(super_diveno.remaining_time() % 1000 + 1)
+        let timer_timeout =
+            Timeout::Milliseconds(super_diveno.remaining_time() % 1000 + 1);
+
+        match self.score_delay_time(logic) {
+            Some(delay) => Timeout::Milliseconds(delay).min(timer_timeout),
+            None => timer_timeout,
+        }
     }
 
     pub fn update_fb_size(&mut self, width: u32, height: u32) {
@@ -120,7 +128,7 @@ impl SuperPainter {
             logic::Event::CurrentTeamChanged => false,
             logic::Event::Solved => {
                 if logic.super_diveno().is_some() {
-                    self.vertices_dirty = true;
+                    self.score_delay = Some(timer::Timer::new());
                     true
                 } else {
                     false
@@ -138,7 +146,7 @@ impl SuperPainter {
     fn fill_vertices_array(
         &mut self,
         remaining_seconds: u32,
-        super_diveno: &logic::SuperDiveno,
+        score: u32,
     ) {
         self.vertices.clear();
 
@@ -149,15 +157,48 @@ impl SuperPainter {
         );
 
         digit_tool.add_display(-1.0, remaining_seconds);
-        digit_tool.add_display(
-            1.0 - digit_tool::DISPLAY_WIDTH,
-            super_diveno.guessed_words(),
-        );
+        digit_tool.add_display(1.0 - digit_tool::DISPLAY_WIDTH, score);
 
         assert_eq!(self.vertices.len(), TOTAL_N_QUADS * 4);
     }
 
-    fn update_vertices(&mut self, super_diveno: &logic::SuperDiveno) {
+    fn score_delay_time(&self, logic: &logic::Logic) -> Option<i64> {
+        self.score_delay.map(|start_time| {
+            let delay_time = logic.word_length() as i64
+                * timing::MILLIS_PER_LETTER;
+
+            (delay_time - start_time.elapsed()).max(0)
+        })
+    }
+
+    fn update_score(
+        &mut self,
+        logic: &logic::Logic,
+        super_diveno: &logic::SuperDiveno,
+    ) -> u32 {
+        let guessed_words = super_diveno.guessed_words();
+
+        match self.score_delay_time(logic) {
+            Some(delay) => {
+                if delay > 0 {
+                    guessed_words.saturating_sub(1)
+                } else {
+                    self.score_delay = None;
+                    self.vertices_dirty = true;
+                    guessed_words
+                }
+            },
+            None => guessed_words,
+        }
+    }
+
+    fn update_vertices(
+        &mut self,
+        logic: &logic::Logic,
+        super_diveno: &logic::SuperDiveno,
+    ) {
+        let score = self.update_score(logic, super_diveno);
+
         let remaining_seconds =
             ((super_diveno.remaining_time() + 999) / 1000) as u32;
 
@@ -167,7 +208,7 @@ impl SuperPainter {
             return;
         }
 
-        self.fill_vertices_array(remaining_seconds, super_diveno);
+        self.fill_vertices_array(remaining_seconds, score);
 
         let gl = &self.paint_data.gl;
 
