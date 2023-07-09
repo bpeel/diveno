@@ -151,6 +151,10 @@ impl ScorePainter {
     }
 
     pub fn paint(&mut self, logic: &logic::Logic) -> Timeout {
+        if logic.super_diveno().is_some() {
+            return Timeout::Forever;
+        }
+
         if self.vertices_dirty {
             self.update_vertices(logic);
             self.vertices_dirty = false;
@@ -212,7 +216,9 @@ impl ScorePainter {
             logic::Event::BingoReset(_) => false,
             logic::Event::BingoChanged(..) => false,
             logic::Event::Bingo(team, _) => {
-                if self.team_is_visible(*team) {
+                if logic.super_diveno().is_none() &&
+                    self.team_is_visible(*team)
+                {
                     self.animate_bingo_score_change(*team);
                     true
                 } else {
@@ -220,7 +226,9 @@ impl ScorePainter {
                 }
             },
             logic::Event::Solved => {
-                if self.team_is_visible(logic.current_team()) {
+                if logic.super_diveno().is_none()
+                    && self.team_is_visible(logic.current_team())
+                {
                     self.animate_solved_score_change(logic);
                     true
                 } else {
@@ -228,7 +236,9 @@ impl ScorePainter {
                 }
             },
             logic::Event::ScoreChanged(team) => {
-                if self.team_is_visible(*team) {
+                if logic.super_diveno().is_none()
+                    && self.team_is_visible(*team)
+                {
                     self.vertices_dirty = true;
                     true
                 } else {
@@ -236,8 +246,12 @@ impl ScorePainter {
                 }
             },
             logic::Event::CurrentTeamChanged => {
-                self.vertices_dirty = true;
-                true
+                if logic.super_diveno().is_none() {
+                    self.vertices_dirty = true;
+                    true
+                } else {
+                    false
+                }
             },
         }
     }
