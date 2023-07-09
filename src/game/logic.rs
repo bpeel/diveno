@@ -72,6 +72,8 @@ pub enum Key {
     Right,
     Up,
     Down,
+    Dollar,
+    Backtick,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -328,6 +330,11 @@ impl Logic {
                     self.add_to_score(-10);
                 }
             },
+            Key::Dollar | Key::Backtick => {
+                if self.current_page == Page::Word {
+                    self.toggle_super_diveno();
+                }
+            },
         }
     }
 
@@ -454,6 +461,16 @@ impl Logic {
 
         self.current_team = next_team;
         self.queue_event_once(Event::CurrentTeamChanged);
+    }
+
+    fn toggle_super_diveno(&mut self) {
+        match self.super_diveno {
+            None => self.super_diveno = Some(SuperDiveno {
+                start_time: timer::Timer::new(),
+                guessed_words: 0,
+            }),
+            Some(_) => self.super_diveno = None,
+        }
     }
 
     pub fn in_progress_guess(&self) -> &str {

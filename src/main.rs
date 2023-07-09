@@ -178,6 +178,8 @@ fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
         Keycode::Right => game_data.logic.press_key(logic::Key::Right),
         Keycode::Up => game_data.logic.press_key(logic::Key::Up),
         Keycode::Down => game_data.logic.press_key(logic::Key::Down),
+        Keycode::Backquote => game_data.logic.press_key(logic::Key::Backtick),
+        Keycode::Dollar => game_data.logic.press_key(logic::Key::Dollar),
         Keycode::F11 => toggle_fullscreen(game_data),
         code => {
             if let Some(ch) = char::from_u32(code as u32) {

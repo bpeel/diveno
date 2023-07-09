@@ -47,6 +47,7 @@ The game is meant to be played with a host who makes sure the rules are followed
 | Delete | Reject a guess. Normally you would do this after a team suggests an invalid word before passing over to the other team. |
 | Page down | Add a letter hint. Normally you would do this before passing to the othear team. |
 | Home | Pick a new word and reset the word grid. |
+| ` or $ | Toggle Super Diveno mode. In Super Diveno mode a countdown timer will be shown instead of the player scores and the number of guessed words will be counted. |
 
 ### Bingo grid page
 

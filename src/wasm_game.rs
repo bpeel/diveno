@@ -716,6 +716,8 @@ impl Diveno {
             "ArrowRight" => game::logic::Key::Right,
             "ArrowUp" => game::logic::Key::Up,
             "ArrowDown" => game::logic::Key::Down,
+            "$" => game::logic::Key::Dollar,
+            "`" => game::logic::Key::Backtick,
             s => {
                 let mut chars = s.chars();
 
