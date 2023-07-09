@@ -253,6 +253,12 @@ impl ScorePainter {
                     false
                 }
             },
+            logic::Event::SuperDivenoToggled => {
+                if logic.super_diveno().is_none() {
+                    self.vertices_dirty = true;
+                }
+                true
+            },
         }
     }
 

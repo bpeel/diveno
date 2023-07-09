@@ -300,6 +300,7 @@ impl LetterPainter {
             logic::Event::BingoReset(_) => false,
             logic::Event::BingoChanged(..) => false,
             logic::Event::Bingo(..) => false,
+            logic::Event::SuperDivenoToggled => false,
         }
     }
 

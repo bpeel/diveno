@@ -340,6 +340,7 @@ impl TombolaPainter {
             logic::Event::CurrentPageChanged(_) => false,
             logic::Event::BingoChanged(..) => false,
             logic::Event::Bingo(..) => false,
+            logic::Event::SuperDivenoToggled => false,
         }
     }
 

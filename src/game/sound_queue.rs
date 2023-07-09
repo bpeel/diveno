@@ -121,6 +121,7 @@ impl SoundQueue {
             logic::Event::BingoReset(_) => (),
             logic::Event::BingoChanged(..) => (),
             logic::Event::Bingo(..) => (),
+            logic::Event::SuperDivenoToggled => (),
         }
     }
 

@@ -46,6 +46,7 @@ pub enum Event {
     BingoReset(Team),
     BingoChanged(Team, usize),
     Bingo(Team, bingo_grid::Bingo),
+    SuperDivenoToggled,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -471,6 +472,8 @@ impl Logic {
             }),
             Some(_) => self.super_diveno = None,
         }
+
+        self.queue_event_once(Event::SuperDivenoToggled);
     }
 
     pub fn in_progress_guess(&self) -> &str {
