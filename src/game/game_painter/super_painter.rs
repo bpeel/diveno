@@ -24,7 +24,8 @@ use timeout::Timeout;
 use glow::HasContext;
 
 // Total number of quads to draw the two displays
-const TOTAL_N_QUADS: usize = digit_tool::TOTAL_N_QUADS * 2;
+const TOTAL_N_QUADS: usize = digit_tool::TOTAL_N_QUADS * 2
+    + digit_tool::N_COLON_QUADS;
 
 pub struct SuperPainter {
     buffer: Rc<Buffer>,
@@ -160,7 +161,10 @@ impl SuperPainter {
             self.height,
         );
 
-        digit_tool.add_display(-1.0, remaining_seconds, false);
+        let minutes_seconds = remaining_seconds % 60
+            + remaining_seconds / 60 * 100;
+
+        digit_tool.add_display(-1.0, minutes_seconds, true);
         digit_tool.add_display(1.0 - digit_tool::DISPLAY_WIDTH, score, false);
 
         assert_eq!(self.vertices.len(), TOTAL_N_QUADS * 4);
