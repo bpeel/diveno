@@ -35,7 +35,7 @@ The game is meant to be played with a host who makes sure the rules are followed
 | --- | ------ |
 | Left, Right | Switch between the pages |
 | Up, Down | Add or subtract 10 points to the appropriate team. This is intended to be able to undo mistakes. |
-| Space | Switch teams. When a word is solved the points will be added to the current team. |
+| Space | In normal mode this switches teams. When a word is solved the points will be added to the current team. In Super Diveno mode this starts or pauses the countdown. |
 
 ### Word puzzle page
 

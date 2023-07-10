@@ -47,6 +47,7 @@ pub enum Event {
     BingoChanged(Team, usize),
     Bingo(Team, bingo_grid::Bingo),
     SuperDivenoToggled,
+    SuperDivenoPauseToggled,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -118,16 +119,45 @@ pub struct Ball {
 
 pub struct SuperDiveno {
     start_time: timer::Timer,
+    // Extra time that should be added to the remaining time due to any pauses
+    extra_time: i64,
+    // If the game is currently paused, this will be the remaining
+    // time that was available when it was paused
+    pause_time: Option<i64>,
     guessed_words: u32,
 }
 
 impl SuperDiveno {
+    fn time_difference(&self) -> i64 {
+        SUPER_DIVENO_TIME - self.start_time.elapsed() + self.extra_time
+    }
+
     pub fn remaining_time(&self) -> i64 {
-        (SUPER_DIVENO_TIME - self.start_time.elapsed()).max(0)
+        self.pause_time.unwrap_or_else(|| {
+            self.time_difference().max(0)
+        })
     }
 
     pub fn guessed_words(&self) -> u32 {
         self.guessed_words
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.pause_time.is_some()
+    }
+
+    fn pause(&mut self) {
+        if self.pause_time.is_none() {
+            let remaining_time = self.remaining_time();
+            self.pause_time = Some(remaining_time);
+        }
+    }
+
+    fn unpause(&mut self) {
+        if let Some(pause_time) = self.pause_time {
+            self.extra_time += pause_time - self.time_difference();
+            self.pause_time = None;
+        }
     }
 }
 
@@ -300,10 +330,19 @@ impl Logic {
                     self.add_hint();
                 }
             },
-            Key::Space =>  {
-                if self.super_diveno.is_none() {
-                    self.dead_key_queued = false;
-                    self.change_current_team();
+            Key::Space => {
+                self.dead_key_queued = false;
+
+                match self.super_diveno.as_mut() {
+                    Some(super_diveno) => {
+                        if super_diveno.is_paused() {
+                            super_diveno.unpause();
+                        } else {
+                            super_diveno.pause();
+                        }
+                        self.queue_event_once(Event::SuperDivenoPauseToggled);
+                    },
+                    None => self.change_current_team(),
                 }
             },
             Key::Home => {
@@ -468,6 +507,8 @@ impl Logic {
         match self.super_diveno {
             None => self.super_diveno = Some(SuperDiveno {
                 start_time: timer::Timer::new(),
+                pause_time: Some(SUPER_DIVENO_TIME),
+                extra_time: 0,
                 guessed_words: 0,
             }),
             Some(_) => self.super_diveno = None,

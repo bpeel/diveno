@@ -164,6 +164,7 @@ impl ScorePainter {
             logic::Event::TombolaStartedSpinning(_) => false,
             logic::Event::BingoReset(_) => false,
             logic::Event::BingoChanged(..) => false,
+            logic::Event::SuperDivenoPauseToggled => false,
             logic::Event::Bingo(team, _) => {
                 if logic.super_diveno().is_none() &&
                     self.team_is_visible(*team)

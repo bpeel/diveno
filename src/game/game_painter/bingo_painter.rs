@@ -257,6 +257,7 @@ impl BingoPainter {
             logic::Event::CurrentTeamChanged => false,
             logic::Event::CurrentPageChanged(_) => false,
             logic::Event::SuperDivenoToggled => false,
+            logic::Event::SuperDivenoPauseToggled => false,
         }
     }
 

@@ -93,8 +93,11 @@ impl SuperPainter {
             gl.disable(glow::BLEND);
         }
 
-        let timer_timeout =
-            Timeout::Milliseconds(super_diveno.remaining_time() % 1000 + 1);
+        let timer_timeout = if super_diveno.is_paused() {
+            Timeout::Forever
+        } else {
+            Timeout::Milliseconds(super_diveno.remaining_time() % 1000 + 1)
+        };
 
         match self.score_delay_time(logic) {
             Some(delay) => Timeout::Milliseconds(delay).min(timer_timeout),
@@ -140,6 +143,7 @@ impl SuperPainter {
                 }
                 true
             },
+            logic::Event::SuperDivenoPauseToggled => true,
         }
     }
 
