@@ -160,8 +160,8 @@ impl SuperPainter {
             self.height,
         );
 
-        digit_tool.add_display(-1.0, remaining_seconds);
-        digit_tool.add_display(1.0 - digit_tool::DISPLAY_WIDTH, score);
+        digit_tool.add_display(-1.0, remaining_seconds, false);
+        digit_tool.add_display(1.0 - digit_tool::DISPLAY_WIDTH, score, false);
 
         assert_eq!(self.vertices.len(), TOTAL_N_QUADS * 4);
     }

@@ -329,7 +329,7 @@ impl ScorePainter {
             self.height,
         );
 
-        digit_tool.add_display(x, score);
+        digit_tool.add_display(x, score, false);
     }
 
     fn fill_vertices_array(&mut self, logic: &logic::Logic) {
