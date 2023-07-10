@@ -167,7 +167,6 @@ fn toggle_fullscreen(game_data: &mut GameData) {
 
 fn handle_keycode_down(game_data: &mut GameData, code: Keycode) {
     match code {
-        Keycode::Escape => game_data.should_quit = true,
         Keycode::Backspace => game_data.logic.press_key(logic::Key::Backspace),
         Keycode::Delete => game_data.logic.press_key(logic::Key::Delete),
         Keycode::Return => game_data.logic.press_key(logic::Key::Enter),
